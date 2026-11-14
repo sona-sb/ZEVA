@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --mouse-x: 50%;
+  --mouse-y: 30%;
+}
+body {
+  margin: 0;
+  background: #090507;
+  color: #f9fafb;
+  font-family: Inter, system-ui, sans-serif;
+  min-height: 100vh;
+}
+#root { position: relative; z-index: 1; }
+
+/* Cursor-tracking aura */
+#aura {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  transition: background 150ms ease-out;
+  background: radial-gradient(650px circle at var(--mouse-x) var(--mouse-y), rgba(159,18,57,.22), rgba(76,5,25,.08) 45%, transparent 80%);
+}
+
+@keyframes fu { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes wave { 0%, 100% { transform: scaleY(.2); } 50% { transform: scaleY(1); } }
+@keyframes glow { 0%, 100% { opacity: .5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.12); } }
+@keyframes amber { 0%, 100% { box-shadow: 0 0 0 rgba(251,191,36,0); } 50% { box-shadow: 0 0 22px rgba(251,191,36,.55); } }
+
+/* Staggered fade-in for page sections */
+.fi > * { animation: fu .5s both; }
+.fi > *:nth-child(2) { animation-delay: .08s; }
+.fi > *:nth-child(3) { animation-delay: .16s; }
+.fi > *:nth-child(4) { animation-delay: .24s; }
+.fi > *:nth-child(5) { animation-delay: .32s; }
+.fi > *:nth-child(6) { animation-delay: .4s; }
+
+.bar {
+  width: 5px; height: 56px; border-radius: 3px;
+  background: linear-gradient(#FDA4AF, #9F1239);
+  transform-origin: center;
+  animation: wave .9s ease-in-out infinite;
+}
+.ov { overflow-x: auto; }
