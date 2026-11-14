@@ -20,7 +20,7 @@ export default function Page6({ bank, toggle }) {
   /* Phase B — Professional Delivery Report */
   if (ph === "b")
     return (
-      <div className="max-w-4xl mx-auto px-4 pb-16 space-y-4 fi">
+      <div className="w-full px-4 sm:px-6 pb-16 space-y-4 fi">
         <div className="text-center"><span className={PILL}>{topic}</span></div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -58,7 +58,7 @@ export default function Page6({ bank, toggle }) {
 
   /* Phase A — Pre-rehearsal setup */
   return (
-    <div className="max-w-3xl mx-auto px-4 pb-16 space-y-5 fi">
+    <div className="w-full min-h-[calc(100vh-4rem)] px-4 sm:px-6 pb-16 flex flex-col gap-5 fi">
       <div className="grid grid-cols-2 bg-[#1A0D13]/80 rounded-full p-1 border border-[#4A2230]/70">
         {[["prompts", "Practice Prompts"], ["own", "My Own Topic"]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={"rounded-full py-2 text-sm font-semibold transition " + (tab === k ? "bg-[#9F1239] text-white" : "text-[#9CA3AF]")}>{l}</button>
@@ -85,7 +85,7 @@ export default function Page6({ bank, toggle }) {
         </div>
       )}
 
-      <Recorder key={rk + tab + pi} start="Start Presentation" send="Send for Evaluation" onSend={() => setPh("b")} />
+      <Recorder key={rk + tab + pi} start="Start Presentation" send="Send for Evaluation" onSend={() => setPh("b")} className="mt-auto mb-4" />
     </div>
   );
 }

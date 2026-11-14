@@ -1,7 +1,7 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import { getRoute } from "./router";
-import { ProtoNav, StudioHeader, BankDrawer } from "./components/shared";
+import { StudioHeader, BankDrawer } from "./components/shared";
 import Page1 from "./pages/Page1";
 import Page2 from "./pages/Page2";
 import Page3 from "./pages/Page3";
@@ -79,7 +79,6 @@ export default function App() {
 
   return (
     <div>
-      <ProtoNav route={route} />
       <div key={route}>{page}</div>
       <BankDrawer open={open} close={() => setOpen(false)} bank={bank} remove={(id) => saveBank(bank.filter((b) => b.id !== id))} />
     </div>

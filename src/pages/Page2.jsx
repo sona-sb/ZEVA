@@ -21,7 +21,7 @@ export default function Page2({ setUser }) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
+    <div className="w-full px-4 sm:px-6 pb-16">
       <div className="flex justify-between h-16 items-center">
         <button className={GHOST} onClick={() => go("home")}>← Back to Home</button>
         <button className={GHOST} onClick={() => go("studio")}>Continue as Guest →</button>

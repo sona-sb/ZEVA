@@ -43,7 +43,7 @@ export default function Page5({ bank, toggle }) {
   /* Phase A — Setup */
   if (ph === "setup")
     return (
-      <div className="max-w-2xl mx-auto px-4 pb-16 space-y-5 fi">
+      <div className="w-full min-h-[calc(100vh-4rem)] px-4 sm:px-6 pb-16 flex flex-col gap-5 fi">
         <div className={CARD}>
           <div className="flex justify-between items-center mb-3">
             <span className={PILL}>Roleplay Scenario</span>
@@ -52,7 +52,7 @@ export default function Page5({ bank, toggle }) {
           <h2 className="text-xl font-bold">{sc.title}</h2>
           <p className={"mt-2 leading-relaxed " + MUTED}>{sc.context}</p>
         </div>
-        <div className="text-center">
+        <div className="text-center mt-auto mb-4">
           <button className={PRI + " text-lg px-10 py-4"} onClick={() => setPh("live")}>🎙️ Start Conversation</button>
           <p className={"text-xs mt-3 " + MUTED}>Hands-free: your mic stays on and the AI replies automatically. Ask it to repeat if you miss something.</p>
         </div>
@@ -62,7 +62,7 @@ export default function Page5({ bank, toggle }) {
   /* Wrap-up summary */
   if (ph === "summary")
     return (
-      <div className="max-w-2xl mx-auto px-4 pb-16 space-y-4 fi">
+      <div className="w-full px-4 sm:px-6 pb-16 space-y-4 fi">
         <div className={CARD + " text-center"}>
           <span className={PILL}>Wrap-Up Summary</span>
           <h2 className="text-2xl font-bold mt-3">Great conversation!</h2>
@@ -83,7 +83,7 @@ export default function Page5({ bank, toggle }) {
   /* Phase B — Active conversation (no replay buttons, no push-to-talk, no send button) */
   const spike = fl >= 3;
   return (
-    <div className="max-w-6xl mx-auto px-4 pb-10">
+    <div className="w-full px-4 sm:px-6 pb-10">
       <div className="grid lg:grid-cols-[1fr_280px] gap-4">
         <div className={CARD + " h-[460px] overflow-y-auto space-y-4"}>
           {msgs.map((m, k) => (

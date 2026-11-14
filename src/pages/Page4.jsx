@@ -29,7 +29,7 @@ export default function Page4({ bank, toggle }) {
   /* Phase B — Diagnostic Scorecard */
   if (ph === "b")
     return (
-      <div className="max-w-4xl mx-auto px-4 pb-16 space-y-4 fi">
+      <div className="w-full px-4 sm:px-6 pb-16 space-y-4 fi">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Metric label="Estimated CEFR" sub={R.label}>
             <div className="relative w-24 h-24">
@@ -67,7 +67,7 @@ export default function Page4({ bank, toggle }) {
 
   /* Phase A — Topic prompt + recording */
   return (
-    <div className="max-w-3xl mx-auto px-4 pb-16 space-y-5 fi">
+    <div className="w-full min-h-[calc(100vh-4rem)] px-4 sm:px-6 pb-16 flex flex-col gap-5 fi">
       <div className={CARD}>
         <div className="flex justify-between items-center mb-3">
           <span className={PILL}>{tp.category}</span>
@@ -81,7 +81,7 @@ export default function Page4({ bank, toggle }) {
           ))}
         </ul>
       </div>
-      <Recorder key={tp.prompt} start="Start Speaking" send="Send for Analysis" onSend={() => setPh("b")} />
+      <Recorder key={tp.prompt} start="Start Speaking" send="Send for Analysis" onSend={() => setPh("b")} className="mt-auto mb-4" />
     </div>
   );
 }

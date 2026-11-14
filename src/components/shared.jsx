@@ -1,6 +1,6 @@
 import React from "react";
 import { useState, useEffect } from "react";
-import { ROUTES, go } from "../router";
+import { go } from "../router";
 
 /* ---------- Design tokens ("Burgundy Studio") ---------- */
 export const B = "transition hover:scale-[1.02] active:scale-[0.98] ";
@@ -13,7 +13,7 @@ export const MUTED = "text-[#9CA3AF]";
 
 /* ---------- Brand ---------- */
 export const Logo = ({ sub }) => (
-  <div className="flex items-center gap-2.5">
+  <button type="button" onClick={() => go("home")} className="flex items-center gap-2.5 text-left">
     <div className="w-9 h-9 rounded-xl bg-[#9F1239] flex items-center justify-center shadow-[0_0_18px_rgba(159,18,57,0.5)]">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
         <path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4" />
@@ -23,33 +23,13 @@ export const Logo = ({ sub }) => (
       <div className="font-extrabold tracking-wider">ZEVA</div>
       {sub && <div className={"text-[11px] " + MUTED}>The English Speaking Studio</div>}
     </div>
-  </div>
+  </button>
 );
-
-/* ---------- Prototype page switcher (remove for production) ---------- */
-export function ProtoNav({ route }) {
-  return (
-    <nav className="sticky top-0 z-50 bg-[#090507]/90 backdrop-blur-xl border-b border-[#4A2230]/70">
-      <div className="ov flex items-center gap-1 px-3 h-11 max-w-6xl mx-auto">
-        <span className="text-[10px] uppercase tracking-widest text-[#FB7185] mr-2 shrink-0">Prototype</span>
-        {ROUTES.map(([k, l]) => (
-          <button
-            key={k}
-            onClick={() => go(k)}
-            className={"shrink-0 text-xs font-semibold rounded-lg px-3 py-1.5 transition " + (route === k ? "bg-[#9F1239] text-white" : "text-[#D1D5DB] hover:bg-[#231219]")}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
-    </nav>
-  );
-}
 
 /* ---------- Studio header (pages 3–6) ---------- */
 export function StudioHeader({ title, bank, openBank, hub, user, logout }) {
   return (
-    <header className="flex items-center justify-between gap-3 flex-wrap max-w-6xl mx-auto px-4 sm:px-6 h-16">
+    <header className="w-full flex items-center justify-between gap-3 flex-wrap px-4 sm:px-6 h-16">
       {hub ? (
         <Logo />
       ) : (
@@ -167,7 +147,7 @@ export const Fillers = ({ list }) => (
 /* ---------- Recorder: idle → recording → review → analyzing ----------
    No countdown clock is shown. In Phase 2, enforce a silent 5-minute cap
    inside the "rec" state (e.g. setTimeout → stop MediaRecorder). */
-export function Recorder({ start, send, onSend }) {
+export function Recorder({ start, send, onSend, className = "" }) {
   const [s, setS] = useState("idle");
   const [pl, setPl] = useState(false);
   const [pr, setPr] = useState(0);
@@ -182,7 +162,7 @@ export function Recorder({ start, send, onSend }) {
   const submit = () => { setS("loading"); setTimeout(onSend, 1900); };
 
   return (
-    <div className={CARD + " text-center"}>
+    <div className={CARD + " text-center " + className}>
       {s === "idle" && (
         <div className="py-4">
           <button onClick={() => setS("rec")} className={PRI + " text-lg px-10 py-4"}>🎙️ {start}</button>
