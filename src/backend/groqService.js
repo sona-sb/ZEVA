@@ -77,29 +77,29 @@ const REPORT_SCHEMA = `{
   "up": [{"id": "upg-1", "original": "spoken sentence", "upgraded": "natural upgraded sentence", "reason": "brief explanation", "keyVocabulary": [{"word": "exact word as it appears in the improved sentence", "definition": "concise, plain-English meaning in this sentence's context (max 15 words)", "level": "B2 or C1"}]}]
 }`;
 
-function analysisMessages(transcript, audioStats) {
+function analysisMessages(transcript, audioStats, topic) {
   return [
     {
       role: "system",
       content:
         "You are ZEVA's English speaking diagnostic coach. Analyze the transcript and audio metrics. Return only valid JSON with exactly this scorecard shape (no markdown): " +
         REPORT_SCHEMA +
-        " Use the transcript's actual filler words and provide concise, actionable grammar notes through the upgrade reasons. For each upgrade, include keyVocabulary with 1–3 impactful advanced or idiomatic words from the improved sentence that a learner may want clarified, using B2 or C1 levels and definitions of no more than 15 words; return an empty array when the sentence uses only basic words.",
+        " Use the transcript's actual filler words and provide concise, actionable grammar notes through the upgrade reasons. If a practice topic is provided, calibrate the feedback and upgraded sentences to it. For each upgrade, include keyVocabulary with 1–3 impactful advanced or idiomatic words from the improved sentence that a learner may want clarified, using B2 or C1 levels and definitions of no more than 15 words; return an empty array when the sentence uses only basic words.",
     },
     {
       role: "user",
-      content: JSON.stringify({ transcript, audioStats }),
+      content: JSON.stringify({ transcript, audioStats, topic }),
     },
   ];
 }
 
-export async function analyzeFluency(transcript, audioStats = {}) {
+export async function analyzeFluency(transcript, audioStats = {}, topic = "") {
   if (!transcript || typeof transcript !== "string") throw new Error("A transcript is required for fluency analysis.");
   const body = (model) => ({
     model,
     temperature: 0.2,
     response_format: { type: "json_object" },
-    messages: analysisMessages(transcript, audioStats),
+    messages: analysisMessages(transcript, audioStats, topic),
   });
   let result;
   try {
@@ -161,11 +161,12 @@ const CONVERSATION_SCHEMA = `{
 }`;
 
 function conversationMessages(userTranscript, conversationHistory, scenario) {
+  const scenarioContext = typeof scenario === "string" ? scenario : scenario?.context || scenario?.title || "a natural roleplay conversation";
   return [
     {
       role: "system",
       content:
-        "You are ZEVA's roleplay conversation partner. Stay in character for the scenario, respond naturally in one to three sentences, and ask a thoughtful follow-up question. Return only valid JSON with this exact shape: " +
+        "You are ZEVA's roleplay conversation partner. Step directly into this scenario: " + scenarioContext + ". Stay in character, respond naturally in one to three sentences, and ask a thoughtful follow-up question. Return only valid JSON with this exact shape: " +
         CONVERSATION_SCHEMA +
         ' If the user has awkward phrasing, grammar mistakes, or repetitive fillers, set upgrade to {"original":"...","improved":"...","explanation":"...","keyVocabulary":[{"word":"exact word as it appears in the improved sentence","definition":"concise, plain-English meaning in this sentence\'s context (max 15 words)","level":"B2 or C1"}]}; otherwise use null. Pick 1–3 impactful advanced or idiomatic words from the improved sentence, or return [] if it only uses basic words. Do not interrupt the conversation with corrections.',
     },

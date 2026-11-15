@@ -13,11 +13,15 @@ export default function Page4({ bank, toggle, saveProgress }) {
   const [report, setReport] = useState(REPORT);
   const [analysisError, setAnalysisError] = useState("");
   const [topicError, setTopicError] = useState("");
+  const [isCustomMode, setIsCustomMode] = useState(false);
+  const [customTopic, setCustomTopic] = useState("");
   const savedProgress = useRef(false);
   const recorder = useAudioRecorder();
   const R = report;
+  const activeTopic = isCustomMode ? customTopic.trim() : tp.prompt;
 
   const shuffle = async () => {
+    setIsCustomMode(false);
     setTopicError("");
     try {
       const topics = await generateNewTopics("fluency");
@@ -29,6 +33,11 @@ export default function Page4({ bank, toggle, saveProgress }) {
       setTopicError(error.message);
       throw error;
     }
+  };
+  const toggleCustomMode = () => {
+    setIsCustomMode((active) => !active);
+    setCustomTopic("");
+    setTopicError("");
   };
   const similar = () => {
     setTp({
@@ -64,13 +73,13 @@ export default function Page4({ bank, toggle, saveProgress }) {
       if (!transcript) throw new Error("The audio transcription was empty. Please try speaking again.");
       const stats = recorder.getAudioStats();
       const wpm = calculateWpm(transcript, stats.durationMs);
-      const result = await analyzeFluency(transcript, { ...stats, wpm });
+      const result = await analyzeFluency(transcript, { ...stats, wpm }, activeTopic);
       setReport({ ...result, wpm, ratio: stats.speechToPauseRatio });
       if (saveProgress && !savedProgress.current) {
         savedProgress.current = true;
         await saveProgress({
         mode: "fluency",
-        topic: tp.prompt,
+        topic: activeTopic,
         cefr: result.cefr,
         wpm,
         fillerCount: result.fillers.reduce((sum, item) => sum + (item.c || 0), 0),
@@ -128,15 +137,32 @@ export default function Page4({ bank, toggle, saveProgress }) {
       <div className={CARD}>
         <div className="flex justify-between items-center mb-3">
           <span className={PILL}>{tp.category}</span>
-          <button onClick={shuffle} className={B + "text-sm text-[#FDA4AF] border border-[#4A2230] rounded-lg px-3 py-1.5"}>⟳ Shuffle Topic</button>
+          <div className="flex items-center gap-2">
+            <button onClick={shuffle} className={B + "text-sm text-[#FDA4AF] border border-[#4A2230] rounded-lg px-3 py-1.5"}>⟳ Shuffle Topic</button>
+            <button onClick={toggleCustomMode} className={B + "text-xs px-3 py-1.5 rounded-lg border border-[#9F1239]/50 hover:border-[#FDA4AF] bg-[#140A0E] text-[#FDA4AF]"}>
+              {isCustomMode ? "✕ Back to Presets" : "+ Custom Topic"}
+            </button>
+          </div>
         </div>
-        <h2 className="text-xl font-bold leading-snug">{tp.prompt}</h2>
-        <p className={"text-sm mt-3 " + MUTED}>You should say:</p>
-        <ul className="mt-1 space-y-1.5 text-[#D1D5DB]">
-          {tp.bullets.map((b) => (
-            <li key={b} className="flex gap-2"><span className="text-[#FB7185]">•</span>{b}</li>
-          ))}
-        </ul>
+        {isCustomMode && (
+          <input
+            value={customTopic}
+            onChange={(event) => setCustomTopic(event.target.value)}
+            placeholder="Type your own speaking topic..."
+            className="bg-[#140A0E] border border-[#9F1239]/60 focus:border-[#FDA4AF] text-white placeholder-gray-400 rounded-xl px-4 py-2.5 w-full"
+          />
+        )}
+        {!isCustomMode && <h2 className="text-xl font-bold leading-snug">{activeTopic}</h2>}
+        {!isCustomMode && (
+          <>
+            <p className={"text-sm mt-3 " + MUTED}>You should say:</p>
+            <ul className="mt-1 space-y-1.5 text-[#D1D5DB]">
+              {tp.bullets.map((b) => (
+                <li key={b} className="flex gap-2"><span className="text-[#FB7185]">•</span>{b}</li>
+              ))}
+            </ul>
+          </>
+        )}
         {topicError && <p className={"text-xs mt-3 " + MUTED}>{topicError}</p>}
       </div>
       <Recorder
@@ -151,6 +177,7 @@ export default function Page4({ bank, toggle, saveProgress }) {
         recordingActive={recorder.isRecording}
         recordedBlob={recorder.recordingBlob}
         audioUrl={recorder.audioUrl}
+        startDisabled={isCustomMode && !customTopic.trim()}
         className="mt-auto mb-4"
       />
     </div>

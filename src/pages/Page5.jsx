@@ -40,10 +40,14 @@ export default function Page5({ bank, toggle, saveProgress }) {
   const [scenarios, setScenarios] = useState(SCEN);
   const [msgs, setMsgs] = useState([]);
   const [duration, setDuration] = useState(0);
+  const [isCustomMode, setIsCustomMode] = useState(false);
+  const [customScenario, setCustomScenario] = useState("");
   const startedAt = useRef(0);
   const savedProgress = useRef(false);
   const sc = scenarios[si];
-  const live = useLiveVoiceOrb(sc);
+  const activeScenario = isCustomMode ? customScenario.trim() : sc;
+  const activeScenarioTitle = isCustomMode ? customScenario.trim() || "Custom Scenario" : sc.title;
+  const live = useLiveVoiceOrb(activeScenario);
   useEffect(() => {
     if (ph === "live" && live.state === "ended") {
       setMsgs(live.transcript);
@@ -56,7 +60,7 @@ export default function Page5({ bank, toggle, saveProgress }) {
         const saveCompletedSession = async () => {
           await saveProgress({
           mode: "conversation",
-          topic: sc.title,
+          topic: activeScenarioTitle,
           wpm: Math.round(words / Math.max(live.durationMs / 60000, 1 / 60)),
           fillerCount: fillers,
           });
@@ -65,16 +69,22 @@ export default function Page5({ bank, toggle, saveProgress }) {
       }
       setPh("summary");
     }
-  }, [live.durationMs, live.state, live.transcript, ph, saveProgress, sc.title]);
+  }, [activeScenarioTitle, live.durationMs, live.state, live.transcript, ph, saveProgress]);
   const reportMsgs = ph === "summary" ? msgs : live.transcript;
   const userTurns = reportMsgs.filter((m) => m.s === "user");
   const averageWpm = userTurns.reduce((total, m) => total + m.text.split(/\s+/).filter(Boolean).length, 0) / Math.max(duration / 60, 1 / 60);
   const fillerCount = userTurns.reduce((total, m) => total + (m.text.match(/\b(um|uh|like|you know|basically|actually|literally)\b/gi) || []).length, 0);
 
   const shuffle = async () => {
+    setIsCustomMode(false);
+    setCustomScenario("");
     const topics = await generateNewTopics("conversation");
     setScenarios(topics);
     setSi(0);
+  };
+  const toggleCustomMode = () => {
+    setIsCustomMode((active) => !active);
+    setCustomScenario("");
   };
   const startConversation = async () => {
     startedAt.current = Date.now();
@@ -96,13 +106,30 @@ export default function Page5({ bank, toggle, saveProgress }) {
         <div className={CARD}>
           <div className="flex justify-between items-center mb-3">
             <span className={PILL}>Roleplay Scenario</span>
-            <button onClick={shuffle} className={B + "text-sm text-[#FDA4AF] border border-[#4A2230] rounded-lg px-3 py-1.5"}>⟳ Reload / New Topic</button>
+              <div className="flex items-center gap-2">
+                <button onClick={shuffle} className={B + "text-sm text-[#FDA4AF] border border-[#4A2230] rounded-lg px-3 py-1.5"}>⟳ Reload / New Topic</button>
+                <button onClick={toggleCustomMode} className={B + "text-xs px-3 py-1.5 rounded-lg border border-[#9F1239]/50 hover:border-[#FDA4AF] bg-[#140A0E] text-[#FDA4AF]"}>
+                  {isCustomMode ? "✕ Back to Presets" : "+ Custom Scenario"}
+                </button>
+              </div>
           </div>
-          <h2 className="text-xl font-bold">{sc.title}</h2>
-          <p className={"mt-2 leading-relaxed " + MUTED}>{sc.context}</p>
+            {isCustomMode && (
+              <input
+                value={customScenario}
+                onChange={(event) => setCustomScenario(event.target.value)}
+                placeholder="Describe your roleplay scenario (e.g., Job interview for a React developer)..."
+                className="bg-[#140A0E] border border-[#9F1239]/60 focus:border-[#FDA4AF] text-white placeholder-gray-400 rounded-xl px-4 py-2.5 w-full"
+              />
+            )}
+          {!isCustomMode && (
+            <>
+              <h2 className="text-xl font-bold">{activeScenarioTitle}</h2>
+              <p className={"mt-2 leading-relaxed " + MUTED}>{sc.context}</p>
+            </>
+          )}
         </div>
         <div className="text-center mt-auto mb-4">
-          <button className={PRI + " text-lg px-10 py-4"} onClick={startConversation}>🎙️ Start Conversation</button>
+          <button className={PRI + " text-lg px-10 py-4"} onClick={startConversation} disabled={isCustomMode && !customScenario.trim()}>🎙️ Start Conversation</button>
           <p className={"text-xs mt-3 " + MUTED}>Hands-free: your mic stays on and the AI replies automatically. Ask it to repeat if you miss something.</p>
         </div>
       </div>
@@ -145,7 +172,7 @@ export default function Page5({ bank, toggle, saveProgress }) {
           </div>
         </section>
         <div className="text-center pt-1">
-          <button className={PRI} onClick={() => { setSi((si + 1) % scenarios.length); setMsgs([]); setPh("setup"); }}>Start Another Scenario</button>
+          <button className={PRI} onClick={() => { setIsCustomMode(false); setCustomScenario(""); setSi((si + 1) % scenarios.length); setMsgs([]); setPh("setup"); }}>Start Another Scenario</button>
         </div>
       </div>
     );

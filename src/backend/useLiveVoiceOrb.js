@@ -20,6 +20,9 @@ function pickVoice() {
 }
 
 export default function useLiveVoiceOrb(scenario) {
+  const activeScenario = typeof scenario === "string"
+    ? { title: scenario, context: scenario, open: "" }
+    : scenario;
   const [state, setState] = useState("idle");
   const [orbIntensity, setOrbIntensity] = useState(0.35);
   const [transcript, setTranscript] = useState([]);
@@ -106,7 +109,7 @@ export default function useLiveVoiceOrb(scenario) {
     setTranscript(transcriptRef.current);
     await speak(turn.aiReply);
     if (!stoppingRef.current) startListening();
-  }, [scenario, speak]);
+  }, [activeScenario, speak]);
 
   const startListening = useCallback(() => {
     if (stoppingRef.current || !analyserRef.current) return;
@@ -170,7 +173,7 @@ export default function useLiveVoiceOrb(scenario) {
       setUpgrades([]);
       stateRef.current = "speaking";
       setState("speaking");
-      const greeting = scenario.open;
+      const greeting = activeScenario.open;
       if (greeting) {
         const opening = { s: "ai", text: greeting };
         transcriptRef.current = [opening];
@@ -186,7 +189,7 @@ export default function useLiveVoiceOrb(scenario) {
       stream.getTracks().forEach((track) => track.stop());
       throw startError;
     }
-  }, [endCall, sample, scenario.open, speak, startListening]);
+  }, [activeScenario.open, endCall, sample, speak, startListening]);
 
   useEffect(() => () => {
     stoppingRef.current = true;

@@ -155,7 +155,7 @@ export const Fillers = ({ list }) => (
 /* ---------- Recorder: idle → recording → review → analyzing ----------
    No countdown clock is shown. In Phase 2, enforce a silent 5-minute cap
    inside the "rec" state (e.g. setTimeout → stop MediaRecorder). */
-export function Recorder({ start, send, onSend, onStartRecording, onStopRecording, waveform, error, recordingActive, recordedBlob, audioUrl, className = "" }) {
+export function Recorder({ start, send, onSend, onStartRecording, onStopRecording, waveform, error, recordingActive, recordedBlob, audioUrl, startDisabled = false, className = "" }) {
   const [s, setS] = useState("idle");
   const [pl, setPl] = useState(false);
   const [pr, setPr] = useState(0);
@@ -233,7 +233,7 @@ export function Recorder({ start, send, onSend, onStartRecording, onStopRecordin
     <div className={CARD + " text-center " + className}>
       {s === "idle" && (
         <div className="py-4">
-          <button onClick={begin} className={PRI + " text-lg px-10 py-4"}>🎙️ {start}</button>
+          <button onClick={begin} disabled={startDisabled} className={PRI + " text-lg px-10 py-4"}>🎙️ {start}</button>
           <p className={"text-sm mt-4 " + MUTED}>Limit: 5 minutes max</p>
           {error && <p className={"text-xs mt-3 " + MUTED}>{error}</p>}
         </div>
