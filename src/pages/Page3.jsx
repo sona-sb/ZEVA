@@ -1,6 +1,6 @@
 import React from "react";
 import { go } from "../router";
-import { CARD, MUTED } from "../components/shared";
+import { CARD, MUTED, Metric } from "../components/shared";
 
 const MODES = [
   ["fluency", "01", "Everyday Fluency & Grammar", "Speak on the selected topic to receive a complete CEFR level score, filler word audit, and mistake-to-upgrade breakdown."],
@@ -9,7 +9,9 @@ const MODES = [
 ];
 
 // Page 3 — 3-Mode Selector Hub (/studio). Header is rendered by App.
-export default function Page3() {
+export default function Page3({ progress = [] }) {
+  const averageWpm = progress.length ? Math.round(progress.reduce((sum, item) => sum + (item.wpm || 0), 0) / progress.length) : 0;
+  const recent = progress.slice(0, 3);
   return (
     <div className="w-full px-4 sm:px-6 pb-16 fi">
       <div className="text-center w-full pt-10 pb-16">
@@ -24,6 +26,16 @@ export default function Page3() {
               <h2 className="text-xl font-bold">{t}</h2>
               <p className={"mt-4 leading-relaxed overflow-hidden transition-all duration-300 " + MUTED}>{d}</p>
             </div>
+            {progress.length > 0 && (
+              <div className={CARD + " mt-6"}>
+                <h2 className="text-xl font-bold">Practice Progress</h2>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                  <Metric label="Sessions Completed" value={progress.length} />
+                  <Metric label="Average WPM" value={averageWpm} />
+                  <Metric label="Recent CEFR / Score" value={recent.map((item) => item.cefr || item.score || "—").join(" · ")} />
+                </div>
+              </div>
+            )}
             <span className="text-[#FDA4AF] text-xl mt-auto group-hover:translate-x-1 transition-transform duration-300">→</span>
           </button>
         ))}

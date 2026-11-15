@@ -2,6 +2,7 @@ import React from "react";
 import { useState } from "react";
 import { go } from "../router";
 import { PRI, GHOST, CARD, MUTED } from "../components/shared";
+import { signInUser, signUpUser } from "../backend/supabaseClient";
 
 const INPUT = "w-full bg-[#090507]/70 border border-[#4A2230] rounded-xl px-4 py-3 outline-none focus:border-[#FB7185] text-sm";
 
@@ -10,14 +11,29 @@ export default function Page2({ setUser }) {
   const [mode, setMode] = useState("in");
   const [show, setShow] = useState(false);
   const [f, setF] = useState({ name: "", email: "", pw: "" });
+  const [status, setStatus] = useState({ loading: false, error: "" });
   const up = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
-  const submit = () => {
-    const email = f.email || "you@example.com";
-    const u = { name: (mode === "up" && f.name) || email.split("@")[0], email };
-    try { localStorage.setItem("zeva-user", JSON.stringify(u)); } catch (e) { /* storage unavailable */ }
-    setUser(u);
-    go("studio");
+  const submit = async () => {
+    setStatus({ loading: true, error: "" });
+    try {
+      if (!f.email || !f.pw) throw new Error("Enter your email and password.");
+      const data = mode === "in"
+        ? await signInUser(f.email, f.pw)
+        : await signUpUser(f.email, f.pw, f.name);
+      const authUser = data.user;
+      if (!authUser) throw new Error("Authentication succeeded but no user session was returned.");
+      const u = {
+        id: authUser.id,
+        name: authUser.user_metadata?.full_name || f.name || f.email.split("@")[0],
+        email: authUser.email || f.email,
+      };
+      try { localStorage.setItem("zeva-user", JSON.stringify(u)); } catch (e) { /* storage unavailable */ }
+      setUser(u);
+      go("studio");
+    } catch (error) {
+      setStatus({ loading: false, error: error.message });
+    }
   };
 
   return (
@@ -49,7 +65,8 @@ export default function Page2({ setUser }) {
             <input className={INPUT + " pr-12"} type={show ? "text" : "password"} placeholder="Password" value={f.pw} onChange={up("pw")} />
             <button onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" title="Toggle visibility">{show ? "🙈" : "👁️"}</button>
           </div>
-          <button className={PRI + " w-full"} onClick={submit}>{mode === "in" ? "Log In to Studio" : "Create Studio Account"}</button>
+          {status.error && <p className={"text-sm " + "text-[#FB7185]"}>{status.error}</p>}
+          <button className={PRI + " w-full"} onClick={submit} disabled={status.loading}>{status.loading ? "Connecting…" : mode === "in" ? "Log In to Studio" : "Create Studio Account"}</button>
         </div>
       </div>
     </div>

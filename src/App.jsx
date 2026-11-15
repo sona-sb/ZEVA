@@ -1,7 +1,8 @@
 import React from "react";
 import { useState, useEffect } from "react";
-import { getRoute } from "./router";
+import { getRoute, go } from "./router";
 import { StudioHeader, BankDrawer } from "./components/shared";
+import { addVocabItem, deleteVocabItem, fetchUserProgress, fetchUserVocab, saveSessionProgress, signOutUser, supabase } from "./backend/supabaseClient";
 import Page1 from "./pages/Page1";
 import Page2 from "./pages/Page2";
 import Page3 from "./pages/Page3";
@@ -9,13 +10,21 @@ import Page4 from "./pages/Page4";
 import Page5 from "./pages/Page5";
 import Page6 from "./pages/Page6";
 
+function profileFromAuthUser(authUser) {
+  return {
+    id: authUser.id,
+    name: authUser.user_metadata?.full_name || authUser.email?.split("@")[0],
+    email: authUser.email,
+  };
+}
+
 export default function App() {
   const [route, setRoute] = useState(getRoute());
-  const [user, setUser] = useState(null); // null = Guest Mode
-  const [bank, setBank] = useState([]);   // Vocabulary Bank
+  const [user, setUser] = useState(null);
+  const [bank, setBank] = useState([]);
+  const [progress, setProgress] = useState([]);
   const [open, setOpen] = useState(false);
 
-  // Hash routing + cursor-tracking aura + restore saved profile
   useEffect(() => {
     const onHash = () => { setRoute(getRoute()); window.scrollTo(0, 0); };
     const onMove = (e) => {
@@ -26,36 +35,113 @@ export default function App() {
     window.addEventListener("hashchange", onHash);
     window.addEventListener("mousemove", onMove);
     try {
-      const u = JSON.parse(localStorage.getItem("zeva-user") || "null");
-      if (u) setUser(u);
-    } catch (e) { /* storage unavailable */ }
+      const saved = JSON.parse(localStorage.getItem("zeva-user") || "null");
+      if (saved) setUser(saved);
+    } catch (error) { console.error("Could not restore local profile.", error.message); }
+    if (!supabase) {
+      return () => {
+        window.removeEventListener("hashchange", onHash);
+        window.removeEventListener("mousemove", onMove);
+      };
+    }
+    let active = true;
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) { console.error("Could not restore Supabase session.", error.message); return; }
+      if (!active || !data.session?.user) return;
+      setUser(profileFromAuthUser(data.session.user));
+      fetchUserVocab(data.session.user.id).then(setBank).catch((loadError) => console.error(loadError.message));
+      if (getRoute() === "login") go("studio");
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active || !session?.user) return;
+      setUser(profileFromAuthUser(session.user));
+      fetchUserVocab(session.user.id).then(setBank).catch((error) => console.error(error.message));
+    });
     return () => {
+      active = false;
       window.removeEventListener("hashchange", onHash);
       window.removeEventListener("mousemove", onMove);
+      listener.subscription.unsubscribe();
     };
   }, []);
 
-  // Bank persists to localStorage keyed by email when signed in; session-only in Guest Mode
   const bankKey = user ? "zeva-bank-" + user.email : null;
   useEffect(() => {
-    if (!bankKey) return;
-    try { setBank(JSON.parse(localStorage.getItem(bankKey) || "[]")); } catch (e) { /* ignore */ }
-  }, [bankKey]);
+    if (!user) {
+      fetchUserVocab().then(setBank).catch((error) => console.error(error.message));
+      return;
+    }
+    if (user.id) {
+      fetchUserVocab(user.id).then(setBank).catch((error) => console.error(error.message));
+      fetchUserProgress(user.id).then(setProgress).catch((error) => console.error(error.message));
+      return;
+    }
+    try { setBank(JSON.parse(localStorage.getItem(bankKey) || "[]")); } catch (error) { console.error("Could not restore guest vocabulary.", error.message); }
+  }, [bankKey, user]);
 
-  const saveBank = (b) => {
-    setBank(b);
-    if (bankKey) { try { localStorage.setItem(bankKey, JSON.stringify(b)); } catch (e) { /* ignore */ } }
+  const saveBank = (items) => {
+    setBank(items);
+    if (!user?.id) {
+      try { localStorage.setItem("zeva_vocab_bank", JSON.stringify(items)); } catch (error) { console.error("Could not save guest vocabulary.", error.message); }
+    }
   };
-  const toggle = (item) =>
-    saveBank(bank.some((b) => b.id === item.id) ? bank.filter((b) => b.id !== item.id) : [...bank, item]);
-  const logout = () => {
-    try { localStorage.removeItem("zeva-user"); } catch (e) { /* ignore */ }
+
+  const toggle = async (item) => {
+    const existing = bank.find((b) => b.id === item.id || (b.original === item.original && b.upgraded === item.upgraded));
+    if (existing) {
+      saveBank(bank.filter((b) => b !== existing));
+      if (user?.id) {
+        try { await deleteVocabItem(existing.remoteId || existing.id); } catch (error) { console.error(error.message); }
+      }
+      return;
+    }
+    if (!user?.id) {
+      const { data, error } = await addVocabItem(item);
+      if (error) { console.error("Guest vocab save error:", error); return; }
+      if (data && !bank.some((entry) => entry.original === data.original && entry.upgraded === data.upgraded)) saveBank([...bank, data]);
+      return;
+    }
+    try {
+      const { data, error } = await addVocabItem({
+        ...item,
+        source_studio: item.source_studio || item.mode,
+      });
+      if (error) {
+        console.error("Supabase vocab save error:", error);
+        return;
+      }
+      if (data && !bank.some((entry) => entry.original === data.original && entry.upgraded === data.upgraded)) saveBank([...bank, data]);
+    } catch (error) { console.error("Supabase vocab save error:", error); }
+  };
+
+  const saveProgress = async (sessionData) => {
+    if (!user?.id) return;
+    try {
+      const saved = await saveSessionProgress(user.id, sessionData);
+      setProgress((items) => [saved, ...items]);
+    } catch (error) { console.error(error.message); }
+  };
+
+  const removeVocab = async (itemId) => {
+    const item = bank.find((entry) => entry.id === itemId);
+    saveBank(bank.filter((entry) => entry.id !== itemId));
+    if (item) {
+      try { await deleteVocabItem(item.remoteId || item.id); } catch (error) { console.error(error.message); }
+    }
+  };
+
+  const logout = async () => {
+    if (user?.id) {
+      try { await signOutUser(); } catch (error) { console.error(error.message); }
+    }
+    try { localStorage.removeItem("zeva-user"); } catch (error) { console.error("Could not clear local profile.", error.message); }
     setUser(null);
     setBank([]);
+    setProgress([]);
   };
 
   const openBank = () => setOpen(true);
-  const shared = { bank, toggle };
+  const shared = { bank, toggle, user, saveProgress };
   const studio = (title, Page) => (
     <div>
       <StudioHeader title={title} bank={bank} openBank={openBank} />
@@ -70,7 +156,7 @@ export default function App() {
     page = (
       <div>
         <StudioHeader hub user={user} logout={logout} bank={bank} openBank={openBank} />
-        <Page3 />
+        <Page3 progress={progress} />
       </div>
     );
   else if (route === "fluency") page = studio("Everyday Fluency & Grammar", Page4);
@@ -80,7 +166,7 @@ export default function App() {
   return (
     <div>
       <div key={route}>{page}</div>
-      <BankDrawer open={open} close={() => setOpen(false)} bank={bank} remove={(id) => saveBank(bank.filter((b) => b.id !== id))} />
+      <BankDrawer open={open} close={() => setOpen(false)} bank={bank} remove={removeVocab} />
     </div>
   );
 }

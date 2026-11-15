@@ -6,7 +6,7 @@ import useAudioRecorder from "../backend/useAudioRecorder";
 import { analyzeFluency, calculateWpm, generateNewTopics, transcribeAudio } from "../backend/groqService";
 
 // Page 4 — Everyday Fluency & Grammar (/studio/fluency)
-export default function Page4({ bank, toggle }) {
+export default function Page4({ bank, toggle, saveProgress }) {
   const [ph, setPh] = useState("a");
   const [i, setI] = useState(0);
   const [tp, setTp] = useState(TOPICS[0]);
@@ -64,6 +64,13 @@ export default function Page4({ bank, toggle }) {
       const wpm = calculateWpm(transcript, stats.durationMs);
       const result = await analyzeFluency(transcript, { ...stats, wpm });
       setReport({ ...result, wpm, ratio: stats.speechToPauseRatio });
+      if (saveProgress) await saveProgress({
+        mode: "fluency",
+        topic: tp.prompt,
+        cefr: result.cefr,
+        wpm,
+        fillerCount: result.fillers.reduce((sum, item) => sum + (item.c || 0), 0),
+      });
       setPh("b");
     } catch (error) {
       setAnalysisError(error.message);

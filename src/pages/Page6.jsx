@@ -8,7 +8,7 @@ import { analyzePresentation, calculateWpm, generateNewTopics, transcribeAudio }
 const AUDIENCES = ["School / College", "Office / Client", "General Audience"];
 
 // Page 6 — Solo Presentation Studio (/studio/presentation)
-export default function Page6({ bank, toggle }) {
+export default function Page6({ bank, toggle, saveProgress }) {
   const [ph, setPh] = useState("a");
   const [tab, setTab] = useState("prompts");
   const [pi, setPi] = useState(0);
@@ -58,6 +58,13 @@ export default function Page6({ bank, toggle }) {
         targetAudience: tab === "prompts" ? (p.aud || aud) : aud,
       });
       setReport({ ...result, wpm });
+      if (saveProgress) await saveProgress({
+        mode: "presentation",
+        topic,
+        score: result.score,
+        wpm,
+        fillerCount: result.fillers.reduce((sum, item) => sum + (item.c || 0), 0),
+      });
       setPh("b");
     } catch (analysisError) {
       setError(analysisError.message);

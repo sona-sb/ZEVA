@@ -90,13 +90,13 @@ export function BankDrawer({ open, close, bank, remove }) {
 
 /* ---------- Upgrade card (Original vs Upgraded + Save to Bank) ---------- */
 export function Upgrade({ u, mode, bank, toggle, compact }) {
-  const saved = bank.some((b) => b.id === u.id);
+  const saved = bank.some((b) => b.id === u.id || (b.original === u.original && b.upgraded === u.upgraded));
   return (
     <div className={compact ? "mt-2 bg-[#231219]/80 border border-dashed border-[#9F1239]/60 rounded-xl p-3 text-sm" : "bg-[#231219]/80 border border-[#4A2230]/70 rounded-xl p-4"}>
       <div className="flex justify-between items-start gap-3">
         <div className="text-[11px] uppercase tracking-wide text-[#FDA4AF] font-semibold">{compact ? "Better Way to Say That" : "Upgrade"}</div>
         <button
-          onClick={() => toggle({ id: u.id, original: u.original, upgraded: u.upgraded, mode })}
+          onClick={() => toggle({ id: u.id, original: u.original, upgraded: u.upgraded, explanation: u.explanation || u.reason || "", source_studio: mode, mode })}
           className={B + "text-xs rounded-lg px-2.5 py-1 border " + (saved ? "bg-[#FDA4AF] text-[#4C0519] border-[#FDA4AF]" : "border-[#FDA4AF]/60 text-[#FDA4AF]")}
         >
           {saved ? "🔖 Saved" : compact ? "🔖 Save to Bank" : "🔖 Save to Vocabulary Bank"}

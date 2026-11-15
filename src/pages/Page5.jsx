@@ -34,22 +34,35 @@ function formatDuration(seconds) {
   return mins + ":" + String(secs).padStart(2, "0");
 }
 
-export default function Page5({ bank, toggle }) {
+export default function Page5({ bank, toggle, saveProgress }) {
   const [ph, setPh] = useState("setup");
   const [si, setSi] = useState(0);
   const [scenarios, setScenarios] = useState(SCEN);
   const [msgs, setMsgs] = useState([]);
   const [duration, setDuration] = useState(0);
   const startedAt = useRef(0);
+  const savedProgress = useRef(false);
   const sc = scenarios[si];
   const live = useLiveVoiceOrb(sc);
   useEffect(() => {
     if (ph === "live" && live.state === "ended") {
       setMsgs(live.transcript);
       setDuration(Math.max(1, Math.round(live.durationMs / 1000)));
+      if (saveProgress && !savedProgress.current) {
+        savedProgress.current = true;
+        const users = live.transcript.filter((m) => m.s === "user");
+        const words = users.reduce((sum, m) => sum + m.text.split(/\s+/).filter(Boolean).length, 0);
+        const fillers = users.reduce((sum, m) => sum + (m.text.match(/\b(um|uh|like|you know|basically|actually|literally)\b/gi) || []).length, 0);
+        void saveProgress({
+          mode: "conversation",
+          topic: sc.title,
+          wpm: Math.round(words / Math.max(live.durationMs / 60000, 1 / 60)),
+          fillerCount: fillers,
+        });
+      }
       setPh("summary");
     }
-  }, [live.durationMs, live.state, live.transcript, ph]);
+  }, [live.durationMs, live.state, live.transcript, ph, saveProgress, sc.title]);
   const reportMsgs = ph === "summary" ? msgs : live.transcript;
   const userTurns = reportMsgs.filter((m) => m.s === "user");
   const averageWpm = userTurns.reduce((total, m) => total + m.text.split(/\s+/).filter(Boolean).length, 0) / Math.max(duration / 60, 1 / 60);
@@ -62,6 +75,7 @@ export default function Page5({ bank, toggle }) {
   };
   const startConversation = async () => {
     startedAt.current = Date.now();
+    savedProgress.current = false;
     await live.startCall();
     setPh("live");
   };
