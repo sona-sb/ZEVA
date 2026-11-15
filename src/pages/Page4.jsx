@@ -2,15 +2,33 @@ import React from "react";
 import { useState } from "react";
 import { TOPICS, REPORT } from "../mockData";
 import { B, PRI, SEC, CARD, PILL, MUTED, Metric, Fillers, Upgrade, Recorder } from "../components/shared";
+import useAudioRecorder from "../backend/useAudioRecorder";
+import { analyzeFluency, calculateWpm, generateNewTopics, transcribeAudio } from "../backend/groqService";
 
 // Page 4 — Everyday Fluency & Grammar (/studio/fluency)
 export default function Page4({ bank, toggle }) {
   const [ph, setPh] = useState("a");
   const [i, setI] = useState(0);
   const [tp, setTp] = useState(TOPICS[0]);
-  const R = REPORT;
+  const [report, setReport] = useState(REPORT);
+  const [analysisError, setAnalysisError] = useState("");
+  const [topicError, setTopicError] = useState("");
+  const recorder = useAudioRecorder();
+  const R = report;
 
-  const shuffle = () => { const n = (i + 1) % TOPICS.length; setI(n); setTp(TOPICS[n]); };
+  const shuffle = async () => {
+    setTopicError("");
+    try {
+      const topics = await generateNewTopics("fluency");
+      const n = (i + 1) % topics.length;
+      setI(n);
+      setTp(topics[n]);
+      return topics[n];
+    } catch (error) {
+      setTopicError(error.message);
+      throw error;
+    }
+  };
   const similar = () => {
     setTp({
       category: "Reinforcement · Targets your mistakes",
@@ -24,7 +42,34 @@ export default function Page4({ bank, toggle }) {
     });
     setPh("a");
   };
-  const fresh = () => { shuffle(); setPh("a"); };
+  const fresh = async () => { await shuffle(); setPh("a"); };
+
+  const startRecording = async () => {
+    setAnalysisError("");
+    try {
+      await recorder.startRecording();
+    } catch (error) {
+      setAnalysisError(error.message);
+      throw error;
+    }
+  };
+
+  const analyzeRecording = async (audioBlob) => {
+    try {
+      if (!audioBlob) throw new Error("No recorded audio was available. Please record again.");
+      const transcription = await transcribeAudio(audioBlob);
+      const transcript = transcription.text;
+      if (!transcript) throw new Error("The audio transcription was empty. Please try speaking again.");
+      const stats = recorder.getAudioStats();
+      const wpm = calculateWpm(transcript, stats.durationMs);
+      const result = await analyzeFluency(transcript, { ...stats, wpm });
+      setReport({ ...result, wpm, ratio: stats.speechToPauseRatio });
+      setPh("b");
+    } catch (error) {
+      setAnalysisError(error.message);
+      throw error;
+    }
+  };
 
   /* Phase B — Diagnostic Scorecard */
   if (ph === "b")
@@ -80,8 +125,21 @@ export default function Page4({ bank, toggle }) {
             <li key={b} className="flex gap-2"><span className="text-[#FB7185]">•</span>{b}</li>
           ))}
         </ul>
+        {topicError && <p className={"text-xs mt-3 " + MUTED}>{topicError}</p>}
       </div>
-      <Recorder key={tp.prompt} start="Start Speaking" send="Send for Analysis" onSend={() => setPh("b")} className="mt-auto mb-4" />
+      <Recorder
+        key={tp.prompt}
+        start="Start Speaking"
+        send="Send for Analysis"
+        onStartRecording={startRecording}
+        onStopRecording={recorder.stopRecording}
+        onSend={analyzeRecording}
+        waveform={recorder.waveform}
+        error={analysisError}
+        recordingActive={recorder.isRecording}
+        recordedBlob={recorder.recordingBlob}
+        className="mt-auto mb-4"
+      />
     </div>
   );
 }

@@ -118,10 +118,10 @@ export function Upgrade({ u, mode, bank, toggle, compact }) {
 }
 
 /* ---------- Small display pieces ---------- */
-export const Wave = () => (
+export const Wave = ({ levels }) => (
   <div className="flex items-center justify-center gap-1 h-16">
     {Array.from({ length: 30 }, (_, i) => (
-      <span key={i} className="bar" style={{ animationDelay: (i % 10) * 0.09 + "s", height: 24 + ((i * 17) % 34) + "px" }} />
+      <span key={i} className="bar" style={{ animationDelay: (i % 10) * 0.09 + "s", height: (levels && levels[i]) || 24 + ((i * 17) % 34) + "px" }} />
     ))}
   </div>
 );
@@ -147,10 +147,18 @@ export const Fillers = ({ list }) => (
 /* ---------- Recorder: idle → recording → review → analyzing ----------
    No countdown clock is shown. In Phase 2, enforce a silent 5-minute cap
    inside the "rec" state (e.g. setTimeout → stop MediaRecorder). */
-export function Recorder({ start, send, onSend, className = "" }) {
+export function Recorder({ start, send, onSend, onStartRecording, onStopRecording, waveform, error, recordingActive, recordedBlob, className = "" }) {
   const [s, setS] = useState("idle");
   const [pl, setPl] = useState(false);
   const [pr, setPr] = useState(0);
+  const [audioBlob, setAudioBlob] = useState(null);
+
+  useEffect(() => {
+    if (onStopRecording && recordingActive === false && recordedBlob && s === "rec") {
+      setAudioBlob(recordedBlob);
+      setS("review");
+    }
+  }, [onStopRecording, recordingActive, recordedBlob, s]);
 
   useEffect(() => {
     if (!pl) return;
@@ -158,24 +166,49 @@ export function Recorder({ start, send, onSend, className = "" }) {
     return () => clearInterval(t);
   }, [pl]);
 
-  const reset = () => { setS("idle"); setPl(false); setPr(0); };
-  const submit = () => { setS("loading"); setTimeout(onSend, 1900); };
+  const reset = () => { setS("idle"); setPl(false); setPr(0); setAudioBlob(null); };
+  const submit = () => {
+    setS("loading");
+    if (onStartRecording || onStopRecording) {
+      Promise.resolve(onSend(audioBlob)).catch((submitError) => {
+        setS("review");
+        if (error === undefined) console.error(submitError);
+      });
+      return;
+    }
+    setTimeout(onSend, 1900);
+  };
+  const begin = () => {
+    setAudioBlob(null);
+    setS("rec");
+    if (onStartRecording) {
+      Promise.resolve(onStartRecording()).catch(() => setS("idle"));
+    }
+  };
+  const stop = () => {
+    setS("review");
+    if (onStopRecording) {
+      Promise.resolve(onStopRecording()).then(setAudioBlob).catch(() => setS("idle"));
+    }
+  };
 
   return (
     <div className={CARD + " text-center " + className}>
       {s === "idle" && (
         <div className="py-4">
-          <button onClick={() => setS("rec")} className={PRI + " text-lg px-10 py-4"}>🎙️ {start}</button>
+          <button onClick={begin} className={PRI + " text-lg px-10 py-4"}>🎙️ {start}</button>
           <p className={"text-sm mt-4 " + MUTED}>Limit: 5 minutes max</p>
+          {error && <p className={"text-xs mt-3 " + MUTED}>{error}</p>}
         </div>
       )}
       {s === "rec" && (
         <div className="py-2">
-          <Wave />
+          <Wave levels={waveform} />
           <div className="flex items-center justify-center gap-2 text-[#FB7185] font-semibold my-3">
             <span className="w-2.5 h-2.5 rounded-full bg-[#DC2626] animate-pulse" />Recording Live...
           </div>
-          <button onClick={() => setS("review")} className={SEC + " border-[#9F1239]"}>⏹ Stop Recording</button>
+          <button onClick={stop} className={SEC + " border-[#9F1239]"}>⏹ Stop Recording</button>
+          {error && <p className={"text-xs mt-3 " + MUTED}>{error}</p>}
         </div>
       )}
       {s === "review" && (
@@ -191,12 +224,14 @@ export function Recorder({ start, send, onSend, className = "" }) {
             <button onClick={reset} className={SEC}>🗑️ Discard</button>
             <button onClick={submit} className={PRI}>🚀 {send}</button>
           </div>
+          {error && <p className={"text-xs mt-3 " + MUTED}>{error}</p>}
         </div>
       )}
       {s === "loading" && (
         <div className="py-8">
           <div className="w-12 h-12 mx-auto rounded-full border-4 border-[#4A2230] border-t-[#FB7185] animate-spin" />
           <p className="mt-4 text-[#FDA4AF]">Analyzing your speech…</p>
+          {error && <p className={"text-xs mt-3 " + MUTED}>{error}</p>}
         </div>
       )}
     </div>
