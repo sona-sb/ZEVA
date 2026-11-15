@@ -2,7 +2,7 @@ import React from "react";
 import { useEffect, useRef, useState } from "react";
 import { SCEN } from "../mockData";
 import { B, PRI, SEC, CARD, PILL, MUTED, Metric, Upgrade } from "../components/shared";
-import { generateNewTopics } from "../backend/groqService";
+import { analyzeFluency, generateNewTopics } from "../backend/groqService";
 import useLiveVoiceOrb from "../backend/useLiveVoiceOrb";
 
 // Page 5 — Live Adaptive Voice Conversation (/studio/conversation)
@@ -48,28 +48,38 @@ export default function Page5({ bank, toggle, saveProgress }) {
   const activeScenario = isCustomMode ? customScenario.trim() : sc;
   const activeScenarioTitle = isCustomMode ? customScenario.trim() || "Custom Scenario" : sc.title;
   const live = useLiveVoiceOrb(activeScenario);
+  const finalizeConversation = async (transcript, durationSeconds) => {
+    const users = transcript.filter((m) => m.s === "user" && m.text?.trim());
+    console.log("Page 5 End Call transcript length:", transcript.length, "user turns:", users.length);
+    if (!saveProgress || users.length < 1 || savedProgress.current) return;
+    savedProgress.current = true;
+    try {
+      const userTranscript = users.map((entry) => entry.text).join("\n");
+      const words = users.reduce((sum, m) => sum + m.text.split(/\s+/).filter(Boolean).length, 0);
+      const fillers = users.reduce((sum, m) => sum + (m.text.match(/\b(um|uh|like|you know|basically|actually|literally)\b/gi) || []).length, 0);
+      const evaluation = await analyzeFluency(userTranscript, { durationMs: durationSeconds * 1000 }, activeScenarioTitle);
+      await saveProgress({
+        mode: "conversation",
+        topic: activeScenarioTitle,
+        cefr: evaluation.cefr,
+        wpm: Math.round(Number(evaluation.wpm) || words / Math.max(durationSeconds / 60, 1 / 60)),
+        fillerCount: fillers,
+        transcriptLength: transcript.length,
+      });
+    } catch (error) {
+      savedProgress.current = false;
+      console.error("Page 5 conversation evaluation/save error:", error);
+    }
+  };
   useEffect(() => {
     if (ph === "live" && live.state === "ended") {
+      const finalDuration = Math.max(1, Math.round(live.durationMs / 1000));
       setMsgs(live.transcript);
-      setDuration(Math.max(1, Math.round(live.durationMs / 1000)));
-      if (saveProgress && !savedProgress.current) {
-        savedProgress.current = true;
-        const users = live.transcript.filter((m) => m.s === "user");
-        const words = users.reduce((sum, m) => sum + m.text.split(/\s+/).filter(Boolean).length, 0);
-        const fillers = users.reduce((sum, m) => sum + (m.text.match(/\b(um|uh|like|you know|basically|actually|literally)\b/gi) || []).length, 0);
-        const saveCompletedSession = async () => {
-          await saveProgress({
-          mode: "conversation",
-          topic: activeScenarioTitle,
-          wpm: Math.round(words / Math.max(live.durationMs / 60000, 1 / 60)),
-          fillerCount: fillers,
-          });
-        };
-        void saveCompletedSession();
-      }
+      setDuration(finalDuration);
+      void finalizeConversation(live.transcript, finalDuration);
       setPh("summary");
     }
-  }, [activeScenarioTitle, live.durationMs, live.state, live.transcript, ph, saveProgress]);
+  }, [activeScenarioTitle, live.durationMs, live.state, live.transcript, ph]);
   const reportMsgs = ph === "summary" ? msgs : live.transcript;
   const userTurns = reportMsgs.filter((m) => m.s === "user");
   const averageWpm = userTurns.reduce((total, m) => total + m.text.split(/\s+/).filter(Boolean).length, 0) / Math.max(duration / 60, 1 / 60);
@@ -92,11 +102,13 @@ export default function Page5({ bank, toggle, saveProgress }) {
     await live.startCall();
     setPh("live");
   };
-  const stopConversation = () => {
+  const stopConversation = async () => {
     const result = live.endCall();
     setMsgs(result.transcript);
     const elapsedMs = Math.max(1, Date.now() - startedAt.current);
-    setDuration(Math.max(1, Math.round(elapsedMs / 1000)));
+    const finalDuration = Math.max(1, Math.round(elapsedMs / 1000));
+    setDuration(finalDuration);
+    await finalizeConversation(result.transcript, finalDuration);
     setPh("summary");
   };
 
@@ -185,6 +197,7 @@ export default function Page5({ bank, toggle, saveProgress }) {
       <div className="flex justify-center pt-3">
         <button className={SEC + " border-[#9F1239]"} onClick={stopConversation}>⏹ Stop Conversation</button>
       </div>
+      {live.error && <p role="alert" className="text-center text-sm text-[#FDA4AF] mt-3">{live.error} Trying again—please continue speaking.</p>}
     </div>
   );
 }

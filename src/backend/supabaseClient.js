@@ -25,9 +25,18 @@ function mapVocabRow(row) {
 function mapSessionRow(row) {
   return {
     ...row,
-    mode: row.studio_mode || row.mode || "Studio",
+    mode: row.studio_mode || row.studio_type || row.mode || "Studio",
     cefr: row.cefr_level || row.cefr || null,
   };
+}
+
+function getGuestSessions() {
+  try {
+    return JSON.parse(localStorage.getItem("zeva_session_history") || "[]");
+  } catch (error) {
+    console.error("Guest session history load error:", error);
+    return [];
+  }
 }
 
 export async function signUpUser(email, password, fullName) {
@@ -173,19 +182,36 @@ async function addVocabItemWithoutAuth(item) {
 }
 
 export async function saveSessionProgress(sessionData) {
-  assertClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not logged in" };
+  const sessionRow = {
+    studio_mode: sessionData.studio_mode || sessionData.mode,
+    topic: sessionData.topic,
+    cefr_level: sessionData.cefr_level || sessionData.cefr || null,
+    score: Math.round(Number(sessionData.score)) || 0,
+    wpm: Math.round(Number(sessionData.wpm)) || 0,
+    filler_count: Math.round(Number(sessionData.filler_count ?? sessionData.fillerCount)) || 0,
+  };
+  if (!supabase) {
+    const saved = { ...sessionRow, id: "guest-" + Date.now(), created_at: new Date().toISOString() };
+    const sessions = getGuestSessions();
+    localStorage.setItem("zeva_session_history", JSON.stringify([...sessions, saved]));
+    console.log("Guest session_history save:", { transcriptLength: sessionData.transcriptLength, row: saved });
+    return saved;
+  }
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError) console.error("Supabase session auth lookup error:", authError);
+  if (!user) {
+    const saved = { ...sessionRow, id: "guest-" + Date.now(), created_at: new Date().toISOString() };
+    const sessions = getGuestSessions();
+    localStorage.setItem("zeva_session_history", JSON.stringify([...sessions, saved]));
+    console.log("Guest session_history save (no authenticated user):", { transcriptLength: sessionData.transcriptLength, row: saved });
+    return saved;
+  }
+  console.log("Supabase session_history insert:", { userId: user.id, transcriptLength: sessionData.transcriptLength, row: sessionRow });
   const { data, error } = await supabase
     .from("session_history")
     .insert({
       user_id: user.id,
-      studio_mode: sessionData.studio_mode || sessionData.mode,
-      topic: sessionData.topic,
-      cefr_level: sessionData.cefr_level || sessionData.cefr || null,
-      score: Math.round(Number(sessionData.score)) || 0,
-      wpm: Math.round(Number(sessionData.wpm)) || 0,
-      filler_count: Math.round(Number(sessionData.filler_count ?? sessionData.fillerCount)) || 0,
+      ...sessionRow,
     })
     .select()
     .single();
@@ -193,15 +219,19 @@ export async function saveSessionProgress(sessionData) {
     console.error("Supabase session_history insert error:", error);
     return { error };
   }
+  console.log("Supabase session_history insert succeeded:", data);
   return data;
 }
 
 export async function fetchUserProgress(userId) {
-  assertClient();
+  if (!supabase) return getGuestSessions().map(mapSessionRow);
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError) console.error("Supabase session auth lookup error:", authError);
+  if (!user) return getGuestSessions().map(mapSessionRow);
   const { data, error } = await supabase
     .from("session_history")
     .select("*")
-    .eq("user_id", userId)
+    .eq("user_id", user.id || userId)
     .order("created_at", { ascending: true });
   assertNoError(error, "Loading session progress");
   return (data || []).map(mapSessionRow);
@@ -246,14 +276,21 @@ export async function fetchProfileAnalytics(userId) {
   if (!supabase) {
     let vocabularyCount = 0;
     try { vocabularyCount = JSON.parse(localStorage.getItem("zeva_vocab_bank") || "[]").length; } catch (error) { console.error("Guest vocab analytics error:", error); }
-    return { sessions: [], vocabularyCount, metrics: calculateGrowthMetrics([], vocabularyCount) };
+    const sessions = getGuestSessions().map(mapSessionRow);
+    return { sessions, vocabularyCount, metrics: calculateGrowthMetrics(sessions, vocabularyCount) };
   }
   assertClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError) console.error("Supabase profile auth lookup error:", authError);
+  if (!user) {
+    const sessions = getGuestSessions().map(mapSessionRow);
+    return { sessions, vocabularyCount: 0, metrics: calculateGrowthMetrics(sessions, 0) };
+  }
   const sessions = await fetchUserProgress(userId);
   const { count, error } = await supabase
     .from("vocabulary_bank")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
+    .eq("user_id", user.id || userId);
   assertNoError(error, "Loading vocabulary count");
   return {
     sessions,

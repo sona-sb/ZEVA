@@ -105,8 +105,8 @@ export default function ProfilePage({ user, analytics }) {
   const progressPercent = metrics.progressPercent || 0;
   const totalSessions = metrics.totalSessions || 0;
   const avgWpm = metrics.avgWpm || 0;
-  const vocabularyCount = profileAnalytics?.vocabularyCount || metrics.vocabularyCount || 0;
-  const [recentSessions] = useState(() => sessions.slice().reverse().slice(0, 6));
+  const recentSessions = sessions.slice().reverse().slice(0, 6);
+  const recentCefrSessions = sessions.slice(-3);
   const distribution = useMemo(() => ["fluency", "conversation", "presentation"].map((mode) => ({
     mode,
     count: sessions.filter((item) => item.mode === mode).length,
@@ -147,7 +147,22 @@ export default function ProfilePage({ user, analytics }) {
         <Metric label="Sessions Completed" value={totalSessions} />
         <Metric label="Average Pace" value={avgWpm + " WPM"} />
         <Metric label="Filler Word Trend" value={fillerStatus} sub={"~" + Math.round(fillerAverage) + " per session"} />
-        <Metric label="Vocabulary Bank" value={vocabularyCount} />
+        <Metric label="Recent CEFR">
+          {recentCefrSessions.length === 0 ? (
+            <div className="text-sm font-semibold text-[#FDA4AF]">Complete more sessions</div>
+          ) : (
+            <div className="flex items-center justify-center">
+              {recentCefrSessions.map((item, index) => (
+                <React.Fragment key={item.id || index}>
+                  {index > 0 && <span className="text-[#FDA4AF]/70 text-xs mx-1" aria-hidden="true">→</span>}
+                  <span className="text-2xl font-extrabold text-[#FDA4AF]">
+                    {item.cefr_level || item.cefr || "B1"}
+                  </span>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+        </Metric>
       </div>
 
       <GrowthChart sessions={sessions} />

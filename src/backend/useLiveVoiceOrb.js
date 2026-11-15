@@ -107,6 +107,7 @@ export default function useLiveVoiceOrb(scenario) {
     historyRef.current = [...historyRef.current, userEntry, aiEntry];
     transcriptRef.current = [...transcriptRef.current, userEntry, aiEntry];
     setTranscript(transcriptRef.current);
+    setError("");
     await speak(turn.aiReply);
     if (!stoppingRef.current) startListening();
   }, [activeScenario, speak]);
@@ -120,7 +121,14 @@ export default function useLiveVoiceOrb(scenario) {
       if (stoppingRef.current) return;
       void processTurn(new Blob(chunks, { type: recorder.mimeType || "audio/webm" })).catch((processError) => {
         setError(processError.message);
-        endCall();
+        if (!stoppingRef.current) {
+          try {
+            startListening();
+          } catch (restartError) {
+            setError(restartError.message);
+            endCall();
+          }
+        }
       });
     };
     recorderRef.current = recorder;

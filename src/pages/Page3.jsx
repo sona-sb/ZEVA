@@ -11,9 +11,12 @@ const MODES = [
 // Page 3 — 3-Mode Selector Hub (/studio). Header is rendered by App.
 export default function Page3({ progress = [] }) {
   const averageWpm = progress.length ? Math.round(progress.reduce((sum, item) => sum + (item.wpm || 0), 0) / progress.length) : 0;
-  const recent = progress.slice(0, 3);
+  const recent = progress.slice(-3);
   return (
     <div className="w-full px-4 sm:px-6 pb-16 fi">
+      <button className="text-sm text-gray-400 hover:text-[#FDA4AF] inline-flex items-center gap-1.5 transition-colors mb-6 cursor-pointer" onClick={() => go("home")}>
+        ← Back to Home
+      </button>
       <div className="text-center w-full pt-10 pb-16">
         <h1 className="text-3xl sm:text-4xl font-extrabold">Welcome to Your Speaking Studio</h1>
         <p className={"mt-3 " + MUTED}>Select a mode below to begin your diagnostic session, practice live conversational fluency, or rehearse your presentation delivery.</p>
@@ -30,16 +33,29 @@ export default function Page3({ progress = [] }) {
           </button>
         ))}
       </div>
-      {progress.length > 0 && (
-        <div className={CARD + " mt-6"}>
-          <h2 className="text-xl font-bold">Practice Progress</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-            <Metric label="Sessions Completed" value={progress.length} />
-            <Metric label="Average WPM" value={averageWpm} />
-            <Metric label="Recent CEFR / Score" value={recent.map((item) => item.cefr || item.cefr_level || item.score || "—").join(" · ")} />
-          </div>
+      <div className={CARD + " mt-6"}>
+        <h2 className="text-xl font-bold">Practice Progress</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+          <Metric label="Sessions Completed" value={progress.length} />
+          <Metric label="Average WPM" value={averageWpm} />
+          <Metric label="Recent CEFR">
+            {recent.length === 0 ? (
+              <div className="text-sm font-semibold text-[#FDA4AF]">Complete more sessions</div>
+            ) : (
+              <div className="flex items-center justify-center">
+                {recent.map((item, index) => (
+                  <React.Fragment key={item.id || index}>
+                    {index > 0 && <span className="text-[#FDA4AF]/70 text-xs mx-1" aria-hidden="true">→</span>}
+                    <span className="text-2xl font-extrabold text-[#FDA4AF]">
+                      {item.cefr_level || item.cefr || "B1"}
+                    </span>
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </Metric>
         </div>
-      )}
+      </div>
     </div>
   );
 }

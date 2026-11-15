@@ -123,7 +123,6 @@ export default function App() {
   };
 
   const saveProgress = async (sessionData) => {
-    if (!user?.id) return;
     try {
       const saved = await saveSessionProgress(sessionData);
       if (saved?.error) {
@@ -131,8 +130,10 @@ export default function App() {
         return;
       }
       setProgress((items) => [saved, ...items]);
-      const refreshed = await fetchProfileAnalytics(user.id);
-      setAnalytics(refreshed);
+      if (user?.id) {
+        const refreshed = await fetchProfileAnalytics(user.id);
+        setAnalytics(refreshed);
+      }
     } catch (error) { console.error(error.message); }
   };
 

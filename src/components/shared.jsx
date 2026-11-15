@@ -14,7 +14,7 @@ export const MUTED = "text-[#9CA3AF]";
 
 /* ---------- Brand ---------- */
 export const Logo = ({ sub }) => (
-  <button type="button" onClick={() => go("home")} className="flex items-center gap-2.5 text-left">
+  <button type="button" onClick={() => go("studio")} className="flex items-center gap-2.5 text-left">
     <div className="w-9 h-9 rounded-xl bg-[#9F1239] flex items-center justify-center shadow-[0_0_18px_rgba(159,18,57,0.5)]">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
         <path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4" />
@@ -29,6 +29,24 @@ export const Logo = ({ sub }) => (
 
 /* ---------- Studio header (pages 3–6) ---------- */
 export function StudioHeader({ title, bank, openBank, hub, user, logout }) {
+  const [isGuestMenuOpen, setIsGuestMenuOpen] = useState(false);
+  const guestMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!isGuestMenuOpen) return undefined;
+    const handleClickOutside = (event) => {
+      if (guestMenuRef.current && !guestMenuRef.current.contains(event.target)) setIsGuestMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isGuestMenuOpen]);
+
+  const openLogin = () => {
+    try { localStorage.removeItem("zeva-guest"); } catch (error) { console.error("Could not clear guest mode.", error.message); }
+    setIsGuestMenuOpen(false);
+    go("login");
+  };
+
   return (
     <header className="w-full flex items-center justify-between gap-3 flex-wrap px-4 sm:px-6 h-16">
       {hub ? (
@@ -40,18 +58,35 @@ export function StudioHeader({ title, bank, openBank, hub, user, logout }) {
         </div>
       )}
       <div className="flex items-center gap-2">
-        {(hub || user) && (
+        {user && (
           <span className="text-sm bg-[#231219]/80 border border-[#4A2230] rounded-full px-3 py-1.5 flex items-center gap-2">
-            {user ? (
-              <>
-                <button className="text-[#FDA4AF] font-semibold" onClick={() => go("profile")} title="Open profile">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#9F1239] text-xs mr-1">{(user.name || user.email || "?").charAt(0).toUpperCase()}</span>
-                  {user.name || user.email}
-                </button>
-                <button className="text-[#FDA4AF] text-xs underline" onClick={logout}>Log Out</button>
-              </>
-            ) : "Guest Mode"}
+            <button className="text-[#FDA4AF] font-semibold" onClick={() => go("profile")} title="Open profile">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#9F1239] text-xs mr-1">{(user.name || user.email || "?").charAt(0).toUpperCase()}</span>
+              {user.name || user.email}
+            </button>
+            <button className="text-[#FDA4AF] text-xs underline" onClick={logout}>Log Out</button>
           </span>
+        )}
+        {!user && hub && (
+          <div ref={guestMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsGuestMenuOpen((open) => !open)}
+              aria-expanded={isGuestMenuOpen}
+              className="text-sm bg-[#231219]/80 border border-[#4A2230] rounded-full px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:border-[#FDA4AF] transition"
+            >
+              Guest <span className="ml-1 text-xs">▾</span>
+            </button>
+            {isGuestMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-[#140A0E] border border-[#9F1239]/60 rounded-xl shadow-2xl p-1.5 z-50">
+                <div className="text-[11px] text-gray-400 px-3 py-1.5">Save your progress &amp; CEFR history</div>
+                <div className="border-t border-[#9F1239]/30 my-1" />
+                <button type="button" onClick={openLogin} className="w-full text-left px-3 py-2 text-xs font-medium text-[#FDA4AF] hover:bg-[#9F1239]/25 rounded-lg transition">
+                  Log In / Sign Up
+                </button>
+              </div>
+            )}
+          </div>
         )}
         <button onClick={openBank} className={B + "border border-[#FDA4AF] text-[#FDA4AF] rounded-xl px-4 py-2 text-sm font-semibold hover:bg-[#FDA4AF]/10"}>
           Vocabulary Bank <span className="ml-1 bg-[#FDA4AF] text-[#4C0519] rounded-full px-2 py-0.5 text-xs">{bank.length}</span>
