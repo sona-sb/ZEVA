@@ -1,5 +1,5 @@
 import React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { go } from "../router";
 
 /* ---------- Design tokens ("Burgundy Studio") ---------- */
@@ -39,10 +39,17 @@ export function StudioHeader({ title, bank, openBank, hub, user, logout }) {
         </div>
       )}
       <div className="flex items-center gap-2">
-        {hub && (
+        {(hub || user) && (
           <span className="text-sm bg-[#231219]/80 border border-[#4A2230] rounded-full px-3 py-1.5 flex items-center gap-2">
-            {user ? user.name : "Guest Mode"}
-            {user && <button className="text-[#FDA4AF] text-xs underline" onClick={logout}>Log Out</button>}
+            {user ? (
+              <>
+                <button className="text-[#FDA4AF] font-semibold" onClick={() => go("profile")} title="Open profile">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#9F1239] text-xs mr-1">{(user.name || user.email || "?").charAt(0).toUpperCase()}</span>
+                  {user.name || user.email}
+                </button>
+                <button className="text-[#FDA4AF] text-xs underline" onClick={logout}>Log Out</button>
+              </>
+            ) : "Guest Mode"}
           </span>
         )}
         <button onClick={openBank} className={B + "border border-[#FDA4AF] text-[#FDA4AF] rounded-xl px-4 py-2 text-sm font-semibold hover:bg-[#FDA4AF]/10"}>
@@ -147,11 +154,12 @@ export const Fillers = ({ list }) => (
 /* ---------- Recorder: idle → recording → review → analyzing ----------
    No countdown clock is shown. In Phase 2, enforce a silent 5-minute cap
    inside the "rec" state (e.g. setTimeout → stop MediaRecorder). */
-export function Recorder({ start, send, onSend, onStartRecording, onStopRecording, waveform, error, recordingActive, recordedBlob, className = "" }) {
+export function Recorder({ start, send, onSend, onStartRecording, onStopRecording, waveform, error, recordingActive, recordedBlob, audioUrl, className = "" }) {
   const [s, setS] = useState("idle");
   const [pl, setPl] = useState(false);
   const [pr, setPr] = useState(0);
   const [audioBlob, setAudioBlob] = useState(null);
+  const audioRef = useRef(null);
 
   useEffect(() => {
     if (onStopRecording && recordingActive === false && recordedBlob && s === "rec") {
@@ -161,12 +169,40 @@ export function Recorder({ start, send, onSend, onStartRecording, onStopRecordin
   }, [onStopRecording, recordingActive, recordedBlob, s]);
 
   useEffect(() => {
-    if (!pl) return;
-    const t = setInterval(() => setPr((p) => { if (p >= 100) { setPl(false); return 0; } return p + 4; }), 200);
-    return () => clearInterval(t);
-  }, [pl]);
+    if (!audioUrl) return undefined;
+    const audio = new Audio(audioUrl);
+    audio.volume = 1.0;
+    audioRef.current = audio;
+    const updateProgress = () => setPr(audio.duration ? (audio.currentTime / audio.duration) * 100 : 0);
+    const resetPlayback = () => { setPl(false); setPr(0); };
+    audio.addEventListener("timeupdate", updateProgress);
+    audio.addEventListener("ended", resetPlayback);
+    return () => {
+      audio.pause();
+      audio.removeEventListener("timeupdate", updateProgress);
+      audio.removeEventListener("ended", resetPlayback);
+      audioRef.current = null;
+    };
+  }, [audioUrl]);
 
-  const reset = () => { setS("idle"); setPl(false); setPr(0); setAudioBlob(null); };
+  const togglePlayback = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (pl) {
+      audio.pause();
+      setPl(false);
+      return;
+    }
+    try {
+      await audio.play();
+      setPl(true);
+    } catch (playbackError) {
+      setPl(false);
+      console.error("Could not play recorded audio.", playbackError);
+    }
+  };
+
+  const reset = () => { audioRef.current?.pause(); setS("idle"); setPl(false); setPr(0); setAudioBlob(null); };
   const submit = () => {
     setS("loading");
     if (onStartRecording || onStopRecording) {
@@ -214,7 +250,7 @@ export function Recorder({ start, send, onSend, onStartRecording, onStopRecordin
       {s === "review" && (
         <div className="py-2">
           <div className="flex items-center gap-4 bg-[#231219] rounded-xl p-3 mb-4">
-            <button onClick={() => setPl(!pl)} className={B + "w-10 h-10 rounded-full bg-[#9F1239] text-white shrink-0"}>{pl ? "❚❚" : "▶"}</button>
+            <button onClick={togglePlayback} className={B + "w-10 h-10 rounded-full bg-[#9F1239] text-white shrink-0"}>{pl ? "❚❚" : "▶"}</button>
             <div className="flex-1 h-2 rounded-full bg-[#4A2230]/70 overflow-hidden">
               <div className="h-full bg-gradient-to-r from-[#9F1239] to-[#FDA4AF] transition-all" style={{ width: pr + "%" }} />
             </div>

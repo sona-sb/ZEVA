@@ -2,13 +2,14 @@ import React from "react";
 import { useState, useEffect } from "react";
 import { getRoute, go } from "./router";
 import { StudioHeader, BankDrawer } from "./components/shared";
-import { addVocabItem, deleteVocabItem, fetchUserProgress, fetchUserVocab, saveSessionProgress, signOutUser, supabase } from "./backend/supabaseClient";
+import { addVocabItem, deleteVocabItem, fetchProfileAnalytics, fetchUserVocab, saveSessionProgress, signOutUser, supabase } from "./backend/supabaseClient";
 import Page1 from "./pages/Page1";
 import Page2 from "./pages/Page2";
 import Page3 from "./pages/Page3";
 import Page4 from "./pages/Page4";
 import Page5 from "./pages/Page5";
 import Page6 from "./pages/Page6";
+import ProfilePage from "./pages/ProfilePage";
 
 function profileFromAuthUser(authUser) {
   return {
@@ -23,6 +24,8 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [bank, setBank] = useState([]);
   const [progress, setProgress] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -39,6 +42,7 @@ export default function App() {
       if (saved) setUser(saved);
     } catch (error) { console.error("Could not restore local profile.", error.message); }
     if (!supabase) {
+      setAuthReady(true);
       return () => {
         window.removeEventListener("hashchange", onHash);
         window.removeEventListener("mousemove", onMove);
@@ -46,16 +50,20 @@ export default function App() {
     }
     let active = true;
     supabase.auth.getSession().then(({ data, error }) => {
-      if (error) { console.error("Could not restore Supabase session.", error.message); return; }
-      if (!active || !data.session?.user) return;
+      if (error) { console.error("Could not restore Supabase session.", error.message); setUser(null); setAuthReady(true); return; }
+      if (!active) return;
+      if (!data.session?.user) { setUser(null); setAuthReady(true); return; }
       setUser(profileFromAuthUser(data.session.user));
       fetchUserVocab(data.session.user.id).then(setBank).catch((loadError) => console.error(loadError.message));
+      fetchProfileAnalytics(data.session.user.id).then(setAnalytics).catch((loadError) => console.error(loadError.message));
       if (getRoute() === "login") go("studio");
+      setAuthReady(true);
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active || !session?.user) return;
       setUser(profileFromAuthUser(session.user));
       fetchUserVocab(session.user.id).then(setBank).catch((error) => console.error(error.message));
+      fetchProfileAnalytics(session.user.id).then(setAnalytics).catch((error) => console.error(error.message));
     });
     return () => {
       active = false;
@@ -73,7 +81,7 @@ export default function App() {
     }
     if (user.id) {
       fetchUserVocab(user.id).then(setBank).catch((error) => console.error(error.message));
-      fetchUserProgress(user.id).then(setProgress).catch((error) => console.error(error.message));
+      fetchProfileAnalytics(user.id).then((value) => { setAnalytics(value); setProgress(value.sessions); }).catch((error) => console.error(error.message));
       return;
     }
     try { setBank(JSON.parse(localStorage.getItem(bankKey) || "[]")); } catch (error) { console.error("Could not restore guest vocabulary.", error.message); }
@@ -117,8 +125,14 @@ export default function App() {
   const saveProgress = async (sessionData) => {
     if (!user?.id) return;
     try {
-      const saved = await saveSessionProgress(user.id, sessionData);
+      const saved = await saveSessionProgress(sessionData);
+      if (saved?.error) {
+        console.error(saved.error);
+        return;
+      }
       setProgress((items) => [saved, ...items]);
+      const refreshed = await fetchProfileAnalytics(user.id);
+      setAnalytics(refreshed);
     } catch (error) { console.error(error.message); }
   };
 
@@ -138,9 +152,14 @@ export default function App() {
     setUser(null);
     setBank([]);
     setProgress([]);
+    setAnalytics(null);
   };
 
   const openBank = () => setOpen(true);
+  useEffect(() => {
+    if (authReady && route === "profile" && !user) go("login");
+  }, [authReady, route, user]);
+
   const shared = { bank, toggle, user, saveProgress };
   const studio = (title, Page) => (
     <div>
@@ -157,6 +176,13 @@ export default function App() {
       <div>
         <StudioHeader hub user={user} logout={logout} bank={bank} openBank={openBank} />
         <Page3 progress={progress} />
+      </div>
+    );
+  else if (route === "profile")
+    page = (
+      <div>
+        <StudioHeader hub user={user} logout={logout} bank={bank} openBank={openBank} />
+        <ProfilePage user={user} analytics={analytics} />
       </div>
     );
   else if (route === "fluency") page = studio("Everyday Fluency & Grammar", Page4);

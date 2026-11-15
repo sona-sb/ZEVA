@@ -18,6 +18,8 @@ export default function useAudioRecorder() {
   const [error, setError] = useState("");
   const [audioStats, setAudioStats] = useState({ durationMs: 0, activeMs: 0, silenceMs: 0, speechToPauseRatio: "0%" });
   const [recordingBlob, setRecordingBlob] = useState(null);
+  const [audioUrl, setAudioUrl] = useState("");
+  const audioUrlRef = useRef("");
   const audioStatsRef = useRef(audioStats);
   const recorderRef = useRef(null);
   const streamRef = useRef(null);
@@ -82,6 +84,12 @@ export default function useAudioRecorder() {
       stopTracks();
       const mimeType = recorder.mimeType || "audio/webm";
       const blob = new Blob(chunksRef.current, { type: mimeType });
+      setAudioUrl((previousUrl) => {
+        if (previousUrl) URL.revokeObjectURL(previousUrl);
+        const nextUrl = URL.createObjectURL(blob);
+        audioUrlRef.current = nextUrl;
+        return nextUrl;
+      });
       setRecordingBlob(blob);
       resolve(blob);
     };
@@ -119,6 +127,11 @@ export default function useAudioRecorder() {
       audioStatsRef.current = stats;
       setAudioStats(stats);
       setWaveform([]);
+      setAudioUrl((previousUrl) => {
+        if (previousUrl) URL.revokeObjectURL(previousUrl);
+        audioUrlRef.current = "";
+        return "";
+      });
       setRecordingBlob(null);
       setIsRecording(true);
       recorder.start();
@@ -135,7 +148,9 @@ export default function useAudioRecorder() {
     clearTimeout(cutoffRef.current);
     if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
     stopTracks();
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    audioUrlRef.current = "";
   }, [stopTracks]);
 
-  return { isRecording, waveform, error, setError, audioStats, recordingBlob, getAudioStats: () => audioStatsRef.current, startRecording, stopRecording };
+  return { isRecording, waveform, error, setError, audioStats, recordingBlob, audioUrl, getAudioStats: () => audioStatsRef.current, startRecording, stopRecording };
 }

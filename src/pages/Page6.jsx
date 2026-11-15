@@ -1,5 +1,5 @@
 import React from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { PROMPTS, PREP } from "../mockData";
 import { B, PRI, SEC, CARD, PILL, MUTED, Metric, Fillers, Upgrade, Recorder } from "../components/shared";
 import useAudioRecorder from "../backend/useAudioRecorder";
@@ -18,6 +18,7 @@ export default function Page6({ bank, toggle, saveProgress }) {
   const [prompts, setPrompts] = useState(PROMPTS);
   const [report, setReport] = useState(PREP);
   const [error, setError] = useState("");
+  const savedProgress = useRef(false);
   const recorder = useAudioRecorder();
   const R = report;
   const p = prompts[pi];
@@ -25,6 +26,7 @@ export default function Page6({ bank, toggle, saveProgress }) {
 
   const shuffle = async () => {
     setError("");
+    savedProgress.current = false;
     try {
       const fresh = await generateNewTopics("presentation");
       setPrompts(fresh);
@@ -36,6 +38,7 @@ export default function Page6({ bank, toggle, saveProgress }) {
 
   const startRecording = async () => {
     setError("");
+    savedProgress.current = false;
     if (tab === "own" && !title.trim()) {
       const validationError = new Error("Enter a presentation topic before starting.");
       setError(validationError.message);
@@ -58,13 +61,16 @@ export default function Page6({ bank, toggle, saveProgress }) {
         targetAudience: tab === "prompts" ? (p.aud || aud) : aud,
       });
       setReport({ ...result, wpm });
-      if (saveProgress) await saveProgress({
+      if (saveProgress && !savedProgress.current) {
+        savedProgress.current = true;
+        await saveProgress({
         mode: "presentation",
         topic,
         score: result.score,
         wpm,
         fillerCount: result.fillers.reduce((sum, item) => sum + (item.c || 0), 0),
-      });
+        });
+      }
       setPh("b");
     } catch (analysisError) {
       setError(analysisError.message);
@@ -151,6 +157,7 @@ export default function Page6({ bank, toggle, saveProgress }) {
         error={error}
         recordingActive={recorder.isRecording}
         recordedBlob={recorder.recordingBlob}
+        audioUrl={recorder.audioUrl}
         className="mt-auto mb-4"
       />
     </div>

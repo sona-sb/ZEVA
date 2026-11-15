@@ -6,6 +6,7 @@ export const ROUTES = [
   ["fluency", "4 · Fluency"],
   ["conversation", "5 · Conversation"],
   ["presentation", "6 · Presentation"],
+  ["profile", "Profile & Growth"],
 ];
 
 export const go = (r) => { window.location.hash = r; };

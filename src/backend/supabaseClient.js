@@ -22,6 +22,14 @@ function mapVocabRow(row) {
   };
 }
 
+function mapSessionRow(row) {
+  return {
+    ...row,
+    mode: row.studio_mode || row.mode || "Studio",
+    cefr: row.cefr_level || row.cefr || null,
+  };
+}
+
 export async function signUpUser(email, password, fullName) {
   assertClient();
   const { data, error } = await supabase.auth.signUp({
@@ -164,22 +172,27 @@ async function addVocabItemWithoutAuth(item) {
   }
 }
 
-export async function saveSessionProgress(userId, sessionData) {
+export async function saveSessionProgress(sessionData) {
   assertClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not logged in" };
   const { data, error } = await supabase
     .from("session_history")
     .insert({
-      user_id: userId,
-      mode: sessionData.mode,
+      user_id: user.id,
+      studio_mode: sessionData.studio_mode || sessionData.mode,
       topic: sessionData.topic,
-      cefr: sessionData.cefr || null,
-      score: sessionData.score || null,
-      wpm: sessionData.wpm || 0,
-      filler_count: sessionData.fillerCount || 0,
+      cefr_level: sessionData.cefr_level || sessionData.cefr || null,
+      score: Math.round(Number(sessionData.score)) || 0,
+      wpm: Math.round(Number(sessionData.wpm)) || 0,
+      filler_count: Math.round(Number(sessionData.filler_count ?? sessionData.fillerCount)) || 0,
     })
     .select()
     .single();
-  assertNoError(error, "Saving session progress");
+  if (error) {
+    console.error("Supabase session_history insert error:", error);
+    return { error };
+  }
   return data;
 }
 
@@ -189,7 +202,59 @@ export async function fetchUserProgress(userId) {
     .from("session_history")
     .select("*")
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: true });
   assertNoError(error, "Loading session progress");
-  return data || [];
+  return (data || []).map(mapSessionRow);
+}
+
+function average(values) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+
+function calculateGrowthMetrics(sessions, vocabularyCount) {
+  const validScores = sessions.map((item) => Number(item.score)).filter((value) => Number.isFinite(value));
+  const wpmValues = sessions.map((item) => Number(item.wpm)).filter((value) => Number.isFinite(value) && value > 0);
+  const halfway = Math.ceil(sessions.length / 2);
+  const firstHalf = sessions.slice(0, halfway).map((item) => Number(item.filler_count)).filter(Number.isFinite);
+  const recentHalf = sessions.slice(-halfway).map((item) => Number(item.filler_count)).filter(Number.isFinite);
+  const firstFillers = average(firstHalf);
+  const recentFillers = average(recentHalf);
+  const fillerChange = firstFillers ? Math.round(((recentFillers - firstFillers) / firstFillers) * 100) : 0;
+  const latest = [...sessions].reverse().find((item) => item.cefr_level || item.cefr);
+  const currentCefr = latest?.cefr_level || latest?.cefr || "B1";
+  const averageScore = average(validScores);
+  const tierProgress = Math.max(0, Math.min(100, Math.round(averageScore || (currentCefr === "B1" ? 25 : 50))));
+
+  return {
+    currentCefr,
+    progressPercent: tierProgress,
+    totalSessions: sessions.length,
+    avgWpm: Math.round(average(wpmValues)),
+    fillerTrend: {
+      change: Math.round(recentFillers - firstFillers),
+      percentage: fillerChange,
+      improved: recentFillers <= firstFillers,
+    },
+    vocabularyCount,
+  };
+}
+
+export async function fetchProfileAnalytics(userId) {
+  if (!supabase) {
+    let vocabularyCount = 0;
+    try { vocabularyCount = JSON.parse(localStorage.getItem("zeva_vocab_bank") || "[]").length; } catch (error) { console.error("Guest vocab analytics error:", error); }
+    return { sessions: [], vocabularyCount, metrics: calculateGrowthMetrics([], vocabularyCount) };
+  }
+  assertClient();
+  const sessions = await fetchUserProgress(userId);
+  const { count, error } = await supabase
+    .from("vocabulary_bank")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  assertNoError(error, "Loading vocabulary count");
+  return {
+    sessions,
+    vocabularyCount: count || 0,
+    metrics: calculateGrowthMetrics(sessions, count || 0),
+  };
 }

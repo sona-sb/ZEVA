@@ -1,5 +1,5 @@
 import React from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { TOPICS, REPORT } from "../mockData";
 import { B, PRI, SEC, CARD, PILL, MUTED, Metric, Fillers, Upgrade, Recorder } from "../components/shared";
 import useAudioRecorder from "../backend/useAudioRecorder";
@@ -13,6 +13,7 @@ export default function Page4({ bank, toggle, saveProgress }) {
   const [report, setReport] = useState(REPORT);
   const [analysisError, setAnalysisError] = useState("");
   const [topicError, setTopicError] = useState("");
+  const savedProgress = useRef(false);
   const recorder = useAudioRecorder();
   const R = report;
 
@@ -46,6 +47,7 @@ export default function Page4({ bank, toggle, saveProgress }) {
 
   const startRecording = async () => {
     setAnalysisError("");
+    savedProgress.current = false;
     try {
       await recorder.startRecording();
     } catch (error) {
@@ -64,13 +66,16 @@ export default function Page4({ bank, toggle, saveProgress }) {
       const wpm = calculateWpm(transcript, stats.durationMs);
       const result = await analyzeFluency(transcript, { ...stats, wpm });
       setReport({ ...result, wpm, ratio: stats.speechToPauseRatio });
-      if (saveProgress) await saveProgress({
+      if (saveProgress && !savedProgress.current) {
+        savedProgress.current = true;
+        await saveProgress({
         mode: "fluency",
         topic: tp.prompt,
         cefr: result.cefr,
         wpm,
         fillerCount: result.fillers.reduce((sum, item) => sum + (item.c || 0), 0),
-      });
+        });
+      }
       setPh("b");
     } catch (error) {
       setAnalysisError(error.message);
@@ -145,6 +150,7 @@ export default function Page4({ bank, toggle, saveProgress }) {
         error={analysisError}
         recordingActive={recorder.isRecording}
         recordedBlob={recorder.recordingBlob}
+        audioUrl={recorder.audioUrl}
         className="mt-auto mb-4"
       />
     </div>

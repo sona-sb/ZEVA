@@ -53,12 +53,15 @@ export default function Page5({ bank, toggle, saveProgress }) {
         const users = live.transcript.filter((m) => m.s === "user");
         const words = users.reduce((sum, m) => sum + m.text.split(/\s+/).filter(Boolean).length, 0);
         const fillers = users.reduce((sum, m) => sum + (m.text.match(/\b(um|uh|like|you know|basically|actually|literally)\b/gi) || []).length, 0);
-        void saveProgress({
+        const saveCompletedSession = async () => {
+          await saveProgress({
           mode: "conversation",
           topic: sc.title,
           wpm: Math.round(words / Math.max(live.durationMs / 60000, 1 / 60)),
           fillerCount: fillers,
-        });
+          });
+        };
+        void saveCompletedSession();
       }
       setPh("summary");
     }
@@ -82,7 +85,8 @@ export default function Page5({ bank, toggle, saveProgress }) {
   const stopConversation = () => {
     const result = live.endCall();
     setMsgs(result.transcript);
-    setDuration(Math.max(1, Math.round((Date.now() - startedAt.current) / 1000)));
+    const elapsedMs = Math.max(1, Date.now() - startedAt.current);
+    setDuration(Math.max(1, Math.round(elapsedMs / 1000)));
     setPh("summary");
   };
 
