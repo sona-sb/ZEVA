@@ -112,7 +112,18 @@ export default function ProfilePage({ user, analytics }) {
     count: sessions.filter((item) => item.mode === mode).length,
   })), [sessions]);
   const maxDistribution = Math.max(...distribution.map((item) => item.count), 1);
-  const trendText = fillerTrend.percentage === 0 ? "No change yet" : Math.abs(fillerTrend.percentage) + "% " + (fillerTrend.improved ? "fewer" : "more");
+  const sessionFillerCounts = sessions.map((item) => Number(item.filler_count)).filter(Number.isFinite);
+  const sessionFillerAverage = sessionFillerCounts.length
+    ? sessionFillerCounts.reduce((sum, count) => sum + count, 0) / sessionFillerCounts.length
+    : 0;
+  const fillerAverage = Number.isFinite(fillerTrend.average) ? fillerTrend.average : sessionFillerAverage;
+  const fillerStatus = sessions.length < 2
+    ? "Just getting started"
+    : fillerAverage < 2
+      ? "Rarely using fillers"
+      : fillerTrend.decreasing
+        ? "Getting cleaner"
+        : "Watch out for 'um' / 'uh'";
 
   return (
     <main className="w-full px-4 sm:px-6 pb-16 space-y-5 fi">
@@ -135,7 +146,7 @@ export default function ProfilePage({ user, analytics }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Metric label="Sessions Completed" value={totalSessions} />
         <Metric label="Average Pace" value={avgWpm + " WPM"} />
-        <Metric label="Filler Word Trend" value={trendText} sub={fillerTrend.improved ? "Improving" : "Keep refining"} />
+        <Metric label="Filler Word Trend" value={fillerStatus} sub={"~" + Math.round(fillerAverage) + " per session"} />
         <Metric label="Vocabulary Bank" value={vocabularyCount} />
       </div>
 

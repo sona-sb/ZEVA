@@ -219,6 +219,7 @@ function calculateGrowthMetrics(sessions, vocabularyCount) {
   const recentHalf = sessions.slice(-halfway).map((item) => Number(item.filler_count)).filter(Number.isFinite);
   const firstFillers = average(firstHalf);
   const recentFillers = average(recentHalf);
+  const averageFillers = average(sessions.map((item) => Number(item.filler_count)).filter(Number.isFinite));
   const fillerChange = firstFillers ? Math.round(((recentFillers - firstFillers) / firstFillers) * 100) : 0;
   const latest = [...sessions].reverse().find((item) => item.cefr_level || item.cefr);
   const currentCefr = latest?.cefr_level || latest?.cefr || "B1";
@@ -234,6 +235,8 @@ function calculateGrowthMetrics(sessions, vocabularyCount) {
       change: Math.round(recentFillers - firstFillers),
       percentage: fillerChange,
       improved: recentFillers <= firstFillers,
+      decreasing: recentFillers < firstFillers,
+      average: averageFillers,
     },
     vocabularyCount,
   };
