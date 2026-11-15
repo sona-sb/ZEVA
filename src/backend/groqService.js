@@ -135,7 +135,9 @@ export async function generateNewTopics(mode) {
           role: "system",
           content: mode === "conversation"
             ? "Generate exactly three fresh roleplay conversation scenarios. Return only JSON in the form {\"topics\":[{\"title\":\"...\",\"context\":\"...\",\"open\":\"...\"}]} with no markdown. Each opening must be a natural AI greeting in character."
-            : "Generate exactly three fresh English speaking practice topics. Return only JSON in the form {\"topics\":[{\"category\":\"...\",\"prompt\":\"...\",\"bullets\":[\"...\",\"...\",\"...\"] ,\"similar\":\"...\"}]} with no markdown.",
+            : mode === "presentation"
+              ? "Generate exactly three fresh presentation prompts. Return only JSON in the form {\"topics\":[{\"aud\":\"School / College or Office / Client\",\"title\":\"...\",\"prompt\":\"...\"}]} with no markdown. Calibrate each prompt to its audience."
+              : "Generate exactly three fresh English speaking practice topics. Return only JSON in the form {\"topics\":[{\"category\":\"...\",\"prompt\":\"...\",\"bullets\":[\"...\",\"...\",\"...\"] ,\"similar\":\"...\"}]} with no markdown.",
         },
         { role: "user", content: JSON.stringify({ mode }) },
       ],
@@ -144,7 +146,9 @@ export async function generateNewTopics(mode) {
   const data = parseJsonContent(result, "Topic generation");
   const valid = mode === "conversation"
     ? (topic) => topic.title && topic.context && topic.open
-    : (topic) => topic.category && topic.prompt && Array.isArray(topic.bullets);
+    : mode === "presentation"
+      ? (topic) => topic.aud && topic.title && topic.prompt
+      : (topic) => topic.category && topic.prompt && Array.isArray(topic.bullets);
   if (!Array.isArray(data.topics) || data.topics.length === 0 || data.topics.some((topic) => !valid(topic))) {
     throw new Error("Topic generation returned an invalid topic list.");
   }
@@ -209,4 +213,72 @@ export async function generateConversationTurn(userTranscript, conversationHisto
     }
   }
   return validateConversationTurn(parseJsonContent(result, "Conversation AI"));
+}
+
+const PRESENTATION_SCHEMA = `{
+  "score": "88",
+  "wpm": 124,
+  "pause": "Strong — Effective pauses between key points",
+  "fillers": [{"w": "so", "c": 3}],
+  "flow": [
+    ["Opening hook", "Feedback on the opening hook calibrated to the audience"],
+    ["Transitions", "Feedback on transitions and body flow"],
+    ["Conclusion", "Feedback on closing impact"]
+  ],
+  "up": [{"id": "pres-upg-1", "original": "spoken phrase", "upgraded": "audience-appropriate executive phrase", "reason": "brief explanation"}]
+}`;
+
+function presentationMessages(transcript, audioStats, context) {
+  return [
+    {
+      role: "system",
+      content:
+        "You are ZEVA's presentation delivery evaluator. Evaluate an uninterrupted spoken presentation for authority, confidence, pacing, cadence, structure, fillers, and audience-appropriate phrasing. Calibrate feedback to the topic, mode, and target audience. Return only valid JSON with exactly this schema and no markdown: " +
+        PRESENTATION_SCHEMA +
+        " Use score as a string number from 0 to 100. Keep flow as exactly three [heading, feedback] pairs named Opening hook, Transitions, and Conclusion. Use actual transcript filler words and provide concise upgrade reasons.",
+    },
+    {
+      role: "user",
+      content: JSON.stringify({ transcript, audioStats, context }),
+    },
+  ];
+}
+
+function validatePresentation(report) {
+  if (!report || typeof report.score !== "string" || typeof report.wpm !== "number" || typeof report.pause !== "string" || !Array.isArray(report.fillers) || !Array.isArray(report.flow) || !Array.isArray(report.up)) {
+    throw new Error("Presentation analysis did not match the expected delivery report schema.");
+  }
+  if (report.flow.length !== 3 || report.flow.some((item) => !Array.isArray(item) || item.length !== 2)) {
+    throw new Error("Presentation analysis returned an invalid structure breakdown.");
+  }
+  return report;
+}
+
+export async function analyzePresentation(transcript, audioStats = {}, context = {}) {
+  if (!transcript || typeof transcript !== "string") throw new Error("A presentation transcript is required.");
+  const body = (model) => ({
+    model,
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+    messages: presentationMessages(transcript, audioStats, context),
+  });
+  let result;
+  try {
+    result = await groqRequest("/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body(PRIMARY_ANALYSIS_MODEL)),
+    });
+  } catch (primaryError) {
+    try {
+      result = await groqRequest("/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body(FALLBACK_ANALYSIS_MODEL)),
+      });
+    } catch (fallbackError) {
+      throw new Error("Presentation analysis failed with both Groq models. " + fallbackError.message);
+    }
+  }
+  return validatePresentation(parseJsonContent(result, "Presentation analysis"));
 }

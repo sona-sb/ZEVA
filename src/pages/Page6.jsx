@@ -2,6 +2,8 @@ import React from "react";
 import { useState } from "react";
 import { PROMPTS, PREP } from "../mockData";
 import { B, PRI, SEC, CARD, PILL, MUTED, Metric, Fillers, Upgrade, Recorder } from "../components/shared";
+import useAudioRecorder from "../backend/useAudioRecorder";
+import { analyzePresentation, calculateWpm, generateNewTopics, transcribeAudio } from "../backend/groqService";
 
 const AUDIENCES = ["School / College", "Office / Client", "General Audience"];
 
@@ -13,9 +15,55 @@ export default function Page6({ bank, toggle }) {
   const [title, setTitle] = useState("");
   const [aud, setAud] = useState("General Audience");
   const [rk, setRk] = useState(0); // bumps to reset the Recorder
-  const R = PREP;
-  const p = PROMPTS[pi];
+  const [prompts, setPrompts] = useState(PROMPTS);
+  const [report, setReport] = useState(PREP);
+  const [error, setError] = useState("");
+  const recorder = useAudioRecorder();
+  const R = report;
+  const p = prompts[pi];
   const topic = tab === "prompts" ? p.title : title || "My presentation";
+
+  const shuffle = async () => {
+    setError("");
+    try {
+      const fresh = await generateNewTopics("presentation");
+      setPrompts(fresh);
+      setPi(0);
+    } catch (shuffleError) {
+      setError(shuffleError.message);
+    }
+  };
+
+  const startRecording = async () => {
+    setError("");
+    if (tab === "own" && !title.trim()) {
+      const validationError = new Error("Enter a presentation topic before starting.");
+      setError(validationError.message);
+      throw validationError;
+    }
+    await recorder.startRecording();
+  };
+
+  const analyzeRecording = async (audioBlob) => {
+    try {
+      if (!audioBlob) throw new Error("No recorded audio was available. Please record again.");
+      const transcription = await transcribeAudio(audioBlob);
+      const transcript = transcription.text;
+      if (!transcript) throw new Error("The audio transcription was empty. Please try speaking again.");
+      const stats = recorder.getAudioStats();
+      const wpm = calculateWpm(transcript, stats.durationMs);
+      const result = await analyzePresentation(transcript, { ...stats, wpm }, {
+        mode: tab,
+        topic,
+        targetAudience: tab === "prompts" ? (p.aud || aud) : aud,
+      });
+      setReport({ ...result, wpm });
+      setPh("b");
+    } catch (analysisError) {
+      setError(analysisError.message);
+      throw analysisError;
+    }
+  };
 
   /* Phase B — Professional Delivery Report */
   if (ph === "b")
@@ -69,7 +117,7 @@ export default function Page6({ bank, toggle }) {
         <div className={CARD}>
           <div className="flex justify-between items-center mb-3">
             <span className={PILL}>{p.aud}</span>
-            <button onClick={() => setPi((pi + 1) % PROMPTS.length)} className={B + "text-sm text-[#FDA4AF] border border-[#4A2230] rounded-lg px-3 py-1.5"}>⟳ Shuffle Prompt</button>
+            <button onClick={shuffle} className={B + "text-sm text-[#FDA4AF] border border-[#4A2230] rounded-lg px-3 py-1.5"}>⟳ Shuffle Prompt</button>
           </div>
           <h2 className="text-xl font-bold">{p.title}</h2>
           <p className={"mt-2 leading-relaxed " + MUTED}>{p.prompt}</p>
@@ -85,7 +133,19 @@ export default function Page6({ bank, toggle }) {
         </div>
       )}
 
-      <Recorder key={rk + tab + pi} start="Start Presentation" send="Send for Evaluation" onSend={() => setPh("b")} className="mt-auto mb-4" />
+      <Recorder
+        key={rk + tab + pi}
+        start="Start Presentation"
+        send="Send for Evaluation"
+        onStartRecording={startRecording}
+        onStopRecording={recorder.stopRecording}
+        onSend={analyzeRecording}
+        waveform={recorder.waveform}
+        error={error}
+        recordingActive={recorder.isRecording}
+        recordedBlob={recorder.recordingBlob}
+        className="mt-auto mb-4"
+      />
     </div>
   );
 }
