@@ -1,6 +1,7 @@
 import React from "react";
 import { useState, useEffect, useRef } from "react";
 import { go } from "../router";
+import InteractiveUpgradeText from "./InteractiveUpgradeText";
 
 /* ---------- Design tokens ("Burgundy Studio") ---------- */
 export const B = "transition hover:scale-[1.02] active:scale-[0.98] ";
@@ -116,7 +117,7 @@ export function Upgrade({ u, mode, bank, toggle, compact }) {
         </div>
         <div className={compact ? "mt-1" : ""}>
           <div className="text-[11px] text-[#FDA4AF]">Upgraded</div>
-          <p className="font-medium">{u.upgraded}</p>
+          <p className="font-medium"><InteractiveUpgradeText sentence={u.improved || u.upgraded || ""} keyVocabulary={u.keyVocabulary} /></p>
         </div>
       </div>
       {u.reason && <p className={"text-xs mt-3 " + MUTED}>💡 {u.reason}</p>}

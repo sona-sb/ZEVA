@@ -93,7 +93,7 @@ export default function useLiveVoiceOrb(scenario) {
     const userEntry = { s: "user", text: userText };
     const turn = await generateConversationTurn(userText, historyRef.current, scenario);
     const upgrade = turn.upgrade
-      ? { id: "conv-" + Date.now(), original: turn.upgrade.original, upgraded: turn.upgrade.improved, reason: turn.upgrade.explanation }
+      ? { id: "conv-" + Date.now(), original: turn.upgrade.original, upgraded: turn.upgrade.improved, reason: turn.upgrade.explanation, keyVocabulary: turn.upgrade.keyVocabulary || [] }
       : null;
     if (upgrade) {
       userEntry.up = upgrade;

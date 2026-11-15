@@ -74,7 +74,7 @@ const REPORT_SCHEMA = `{
   "energy": "Steady & Clear",
   "fillers": [{"w": "um", "c": 4}],
   "tip": "one practical improvement tip",
-  "up": [{"id": "upg-1", "original": "spoken sentence", "upgraded": "natural upgraded sentence", "reason": "brief explanation"}]
+  "up": [{"id": "upg-1", "original": "spoken sentence", "upgraded": "natural upgraded sentence", "reason": "brief explanation", "keyVocabulary": [{"word": "exact word as it appears in the improved sentence", "definition": "concise, plain-English meaning in this sentence's context (max 15 words)", "level": "B2 or C1"}]}]
 }`;
 
 function analysisMessages(transcript, audioStats) {
@@ -84,7 +84,7 @@ function analysisMessages(transcript, audioStats) {
       content:
         "You are ZEVA's English speaking diagnostic coach. Analyze the transcript and audio metrics. Return only valid JSON with exactly this scorecard shape (no markdown): " +
         REPORT_SCHEMA +
-        " Use the transcript's actual filler words and provide concise, actionable grammar notes through the upgrade reasons.",
+        " Use the transcript's actual filler words and provide concise, actionable grammar notes through the upgrade reasons. For each upgrade, include keyVocabulary with 1–3 impactful advanced or idiomatic words from the improved sentence that a learner may want clarified, using B2 or C1 levels and definitions of no more than 15 words; return an empty array when the sentence uses only basic words.",
     },
     {
       role: "user",
@@ -167,7 +167,7 @@ function conversationMessages(userTranscript, conversationHistory, scenario) {
       content:
         "You are ZEVA's roleplay conversation partner. Stay in character for the scenario, respond naturally in one to three sentences, and ask a thoughtful follow-up question. Return only valid JSON with this exact shape: " +
         CONVERSATION_SCHEMA +
-        ' If the user has awkward phrasing, grammar mistakes, or repetitive fillers, set upgrade to {"original":"...","improved":"...","explanation":"..."}; otherwise use null. Do not interrupt the conversation with corrections.',
+        ' If the user has awkward phrasing, grammar mistakes, or repetitive fillers, set upgrade to {"original":"...","improved":"...","explanation":"...","keyVocabulary":[{"word":"exact word as it appears in the improved sentence","definition":"concise, plain-English meaning in this sentence\'s context (max 15 words)","level":"B2 or C1"}]}; otherwise use null. Pick 1–3 impactful advanced or idiomatic words from the improved sentence, or return [] if it only uses basic words. Do not interrupt the conversation with corrections.',
     },
     {
       role: "user",
@@ -225,7 +225,7 @@ const PRESENTATION_SCHEMA = `{
     ["Transitions", "Feedback on transitions and body flow"],
     ["Conclusion", "Feedback on closing impact"]
   ],
-  "up": [{"id": "pres-upg-1", "original": "spoken phrase", "upgraded": "audience-appropriate executive phrase", "reason": "brief explanation"}]
+  "up": [{"id": "pres-upg-1", "original": "spoken phrase", "upgraded": "audience-appropriate executive phrase", "reason": "brief explanation", "keyVocabulary": [{"word": "exact word as it appears in the improved sentence", "definition": "concise, plain-English meaning in this sentence's context (max 15 words)", "level": "B2 or C1"}]}]
 }`;
 
 function presentationMessages(transcript, audioStats, context) {
@@ -235,7 +235,7 @@ function presentationMessages(transcript, audioStats, context) {
       content:
         "You are ZEVA's presentation delivery evaluator. Evaluate an uninterrupted spoken presentation for authority, confidence, pacing, cadence, structure, fillers, and audience-appropriate phrasing. Calibrate feedback to the topic, mode, and target audience. Return only valid JSON with exactly this schema and no markdown: " +
         PRESENTATION_SCHEMA +
-        " Use score as a string number from 0 to 100. Keep flow as exactly three [heading, feedback] pairs named Opening hook, Transitions, and Conclusion. Use actual transcript filler words and provide concise upgrade reasons.",
+        " Use score as a string number from 0 to 100. Keep flow as exactly three [heading, feedback] pairs named Opening hook, Transitions, and Conclusion. Use actual transcript filler words and provide concise upgrade reasons. For each upgrade, include keyVocabulary with 1–3 impactful advanced or idiomatic words from the improved sentence that a learner may want clarified, using B2 or C1 levels and definitions of no more than 15 words; return an empty array when the sentence uses only basic words.",
     },
     {
       role: "user",
