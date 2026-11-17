@@ -134,7 +134,7 @@ export async function generateNewTopics(mode) {
         {
           role: "system",
           content: mode === "conversation"
-            ? "Generate exactly three fresh roleplay conversation scenarios. Return only JSON in the form {\"topics\":[{\"title\":\"...\",\"context\":\"...\",\"open\":\"...\"}]} with no markdown. Each opening must be a natural AI greeting in character."
+            ? "Generate exactly three fresh, realistic roleplay conversation scenarios set only in everyday life. Mix casual conversations with friends or family and practical daily errands such as shopping, appointments, services, or home maintenance. Do not generate fantasy, fictional, creative-writing, workplace-presentation, or abstract discussion scenarios. Return only JSON in the form {\"topics\":[{\"title\":\"...\",\"context\":\"...\",\"open\":\"...\"}]} with no markdown. Each opening must be a natural AI greeting in character and suited for spoken dialogue."
             : mode === "presentation"
               ? "Generate exactly three fresh presentation prompts. Return only JSON in the form {\"topics\":[{\"aud\":\"School / College or Office / Client\",\"title\":\"...\",\"prompt\":\"...\"}]} with no markdown. Calibrate each prompt to its audience."
               : "Generate exactly three fresh English speaking practice topics. Return only JSON in the form {\"topics\":[{\"category\":\"...\",\"prompt\":\"...\",\"bullets\":[\"...\",\"...\",\"...\"] ,\"similar\":\"...\"}]} with no markdown.",

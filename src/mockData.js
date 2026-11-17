@@ -55,15 +55,80 @@ export const REPORT = {
 
 export const SCEN = [
   {
+    category: "Daily Errands",
     title: "Resolving a Mixed-Up Café Order",
     context:
       "You ordered an iced oat latte and a toasted croissant, but the barista handed you a hot americano and a muffin during the morning rush.",
     open: "Hi there! Here’s your hot americano and blueberry muffin—have a great morning!",
   },
   {
+    category: "Friends & Family",
     title: "Catching Up with a Former Colleague",
     context: "You bump into a former teammate at a tech meetup and catch up on recent projects and weekend plans.",
     open: "Hey! It has been ages since we last spoke. How have your projects been going lately?",
+  },
+  {
+    category: "Friends & Family",
+    title: "Catching Up with a Close Friend",
+    context:
+      "You are a close friend who has not spoken with the learner in a few weeks. Ask warmly about their life, work or studies, and recent highlights.",
+    open: "Hey, I’ve missed talking with you! What’s been happening in your world lately?",
+  },
+  {
+    category: "Friends & Family",
+    title: "Explaining a Career Choice",
+    context:
+      "You are the learner’s supportive but practical parent. Ask why they chose their current study or career path and gently explore their plans and concerns.",
+    open: "I’m glad you told me about your plans. Can you help me understand what made you choose this career direction?",
+  },
+  {
+    category: "Friends & Family",
+    title: "Planning a Weekend Hangout",
+    context:
+      "You are an easygoing friend trying to make weekend plans. Suggest a couple of activities, compare schedules and preferences, and settle on a practical plan.",
+    open: "Are you free this weekend? I was thinking we could do something fun together—what are you in the mood for?",
+  },
+  {
+    category: "Friends & Family",
+    title: "Venting About a Tough Day",
+    context:
+      "You are a patient, empathetic friend listening after the learner has had a difficult day. Encourage them to share what happened and respond with natural support, not a lecture.",
+    open: "You sound like you’ve had a really rough day. Do you want to tell me what happened?",
+  },
+  {
+    category: "Friends & Family",
+    title: "Recommending a Favorite Movie",
+    context:
+      "You are a curious friend asking for a movie recommendation. Ask what the learner likes, react to their suggestion, and discuss why the film is worth watching.",
+    open: "I’m looking for something good to watch tonight. What movie would you recommend, and what makes it one of your favorites?",
+  },
+  {
+    category: "Daily Errands",
+    title: "Returning a Defective Item",
+    context:
+      "You are a polite but busy store returns clerk. The learner is returning a defective item, so ask for the receipt and briefly explain the available refund or exchange options.",
+    open: "Hi there. I can help with that return—could I see the item and your receipt, please?",
+  },
+  {
+    category: "Daily Errands",
+    title: "Asking a Pharmacist for Relief",
+    context:
+      "You are a careful community pharmacist. Ask about the learner’s cold or allergy symptoms, relevant medicines or health considerations, and suggest when they should see a doctor.",
+    open: "Of course, I can help you look at some options. What symptoms are bothering you, and how long have you had them?",
+  },
+  {
+    category: "Daily Errands",
+    title: "Requesting a Landlord Repair",
+    context:
+      "You are a responsive but detail-oriented landlord. The learner is reporting a repair needed in their home, so ask when it started, how serious it is, and arrange a visit.",
+    open: "Thanks for letting me know. What exactly is broken, and when did you first notice the problem?",
+  },
+  {
+    category: "Daily Errands",
+    title: "Customizing a Café Order",
+    context:
+      "You are a friendly café barista taking a detailed order during a normal morning shift. Confirm the learner’s drink size, milk, sweetness, temperature, and any food choice.",
+    open: "Good morning! What can I get started for you today, and would you like to customize your drink?",
   },
 ];
 
